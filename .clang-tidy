@@ -1,0 +1,50 @@
+Checks: >-
+  *,
+  -abseil-*,
+  -altera-*,
+  -android-*,
+  -fuchsia-*,
+  -google-*,
+  -llvm*,
+  -modernize-use-trailing-return-type,
+  -zircon-*,
+  -readability-else-after-return,
+  -readability-static-accessed-through-instance,
+  -readability-avoid-const-params-in-decls,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -misc-non-private-member-variables-in-classes,
+  -misc-no-recursion,
+  -misc-use-anonymous-namespace,
+  -misc-use-internal-linkage,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -readability-magic-numbers,
+  -cppcoreguidelines-pro-type-vararg,
+  -hicpp-vararg,
+  -cert-err33-c,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -hicpp-no-array-decay,
+  -bugprone-easily-swappable-parameters,
+  -readability-braces-around-statements,
+  -hicpp-braces-around-statements
+
+WarningsAsErrors: ''
+
+HeaderFilterRegex: '.*'
+ExcludeHeaderFilterRegex: '.*/pico-sdk/.*|.*/tinyusb/.*|.*/cyw43.*'
+
+HeaderFileExtensions: [h, hh, hpp, hxx]
+ImplementationFileExtensions: [c, cc, cpp, cxx]
+
+FormatStyle: none
+
+CheckOptions:
+  - key: readability-function-cognitive-complexity.Threshold
+    value: '80'
+  - key:             readability-identifier-length.IgnoredVariableNames
+    value:           'x|y|z|v|i|j|k|l|m|r|w|h|cs'
+  - key:             readability-identifier-length.IgnoredParameterNames
+    value:           'x|y|z|v|i|j|k|l|m|r|w|h|cs'
+
+SystemHeaders: false
