@@ -5,6 +5,8 @@
 #include <iostream>
 #include <pico/stdio.h>
 #include <pico/time.h>
+#include "rc522/platform/pico/spi_transport.hpp"
+#include "rc522/rc522.hpp"
 
 static constexpr uint8_t cs_io = 5;
 static constexpr uint8_t VersionReg = (0x37 << 1) | (1u << 7); // 0x91 or 0x92
@@ -15,12 +17,14 @@ static constexpr uint8_t CommandReg_R = (0x01 << 1) | (1u << 7);
 int main(){
     stdio_init_all();
     sleep_ms(2000);
-    
     spi_init(spi0, 5'000'000);
-    
     uint32_t spi_mask = (1u << 2) | (1u << 3) | (1u << 4);
     gpio_init(cs_io);
     gpio_set_dir(cs_io, GPIO_OUT);
+    PicoTransport pt{cs_io, spi0};
+    Rc522 rc{pt};
+    
+    
     gpio_put(cs_io, 1);
     sleep_us(1);
     gpio_set_function_masked(spi_mask, GPIO_FUNC_SPI);

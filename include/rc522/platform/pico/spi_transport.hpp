@@ -1,3 +1,4 @@
+#pragma once
 #include "../../transport.hpp"
 #include <cstdint>
 #include <hardware/timer.h>
@@ -22,6 +23,4 @@ class PicoTransport : public Transport {
     uint32_t microus_32() override{
         return time_us_32();
     }
-    
-    
 };
