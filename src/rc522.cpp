@@ -93,6 +93,7 @@ result_of_op Rc522::init() {
     }
     write_one_byte(TModeReg, SET_UP_TIMER);
     write_one_byte(TPrescalerReg, SET_UP_TPRESCALER_LO);
+    write_one_byte(TReloadVal_Lo, SET_UP_TRELOAD_LO_FOR_1MS);
     if (read_one_byte(TModeReg) != SET_UP_TIMER)
         return result_of_op::REGISTERES_NOT_CHANGING;
     if (read_one_byte(TPrescalerReg) != SET_UP_TPRESCALER_LO)
@@ -162,9 +163,6 @@ void Rc522::start_exc(const uint8_t *arr, uint16_t size, bool byt7e, bool crc, T
     clear_status();
     if (time_levels != last_time_) {
         switch (time_levels) {
-        case TIMEOUT_LEVELS::Ti0_6:
-            write_one_byte(TReloadVal_Lo, SET_UP_TRELOAD_LO_FOR_0_5MS);
-            break;
         case TIMEOUT_LEVELS::Ti10:
             write_one_byte(TReloadVal_Lo, SET_UP_TRELOAD_LO_FOR_10MS);
             break;
@@ -197,12 +195,6 @@ void Rc522::start_exc(const uint8_t *arr, uint16_t size, bool byt7e, bool crc, T
 
 result_of_transaction Rc522::check_exc() {
     uint8_t byte = read_one_byte(ComIrqReg);
-    printf("IRQ=%02X ERR=%02X FIFO=%02X CMD=%02X BF=%02X\n",
-           byte,
-           read_one_byte(ErrorReg),
-           read_one_byte(FIFOLevelReg),
-           read_one_byte(CommandReg),
-           read_one_byte(BitFramingReg));
     if ((byte & (1U << 1U)) == (1U << 1U)) {
         return error_decoding();
     } else if ((byte & (1U << 5U)) == (1U << 5U)) {

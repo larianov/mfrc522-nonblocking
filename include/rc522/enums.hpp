@@ -60,7 +60,6 @@ enum class Halt_states : uint8_t {
 };
 
 enum class TIMEOUT_LEVELS : uint8_t {
-    Ti0_6,
     Ti1,
     Ti5,
     Ti10

@@ -27,5 +27,7 @@ class CardReader {
   public:
     explicit CardReader(Rc522 &ic_ref) : ic_com(ic_ref) {};
     std::pair<Uid, result_of_card> get_uid(); // pollable func
+    std::pair<Uid, result_of_card> block_get_uid(uint32_t time_in_us); //blocking function, max 
+
 };
 } // namespace rc522

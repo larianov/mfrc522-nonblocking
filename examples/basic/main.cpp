@@ -1,6 +1,7 @@
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
 #include <cstdint>
+#include <cstdio>
 #include <hardware/gpio.h>
 #include <iostream>
 #include <pico/platform/common.h>
@@ -29,17 +30,21 @@ int main() {
     if (rc.init() == rc522::result_of_op::SUCC) {
         std::cout << "PIS" << std::endl;
     }
+    rc.change_gain(rc522::RFCfgReg_Gain::DB_48);
     rc522::CardReader cr{rc};
     while (true) {
-        auto val = cr.get_uid();
-        sleep_us(1);
-        if (val.second == rc522::result_of_card::SUCC) {
-            for(;;){
-                for(uint8_t i{}; i < val.first.size; i++){
-                    std::cout << val.first.bytes[i] << ' ';
-                }
-                std::cout << std::endl;
-            }   
-        }
+          auto val = cr.get_uid();
+  
+          if (val.second == rc522::result_of_card::WAIT) {
+              continue;
+          }
+          if (val.second == rc522::result_of_card::SUCC) {
+              printf("UID: ");
+              for (uint8_t i{}; i < val.first.size; i++) {
+                  printf("%02X ", val.first.bytes[i]);
+              }
+              std::cout << std::endl;
+              sleep_ms(200);
+          }
     }
 }

@@ -10,7 +10,7 @@ inline constexpr uint8_t SET_UP_TIMER =
     (0b1'000'1111); // set-up automatic timer, and set 4 highest bits of tprescaler to 1
 inline constexpr uint8_t SET_UP_TPRESCALER_LO = (0xFF);       // set-up lowest bits of tprescaler to 1
 inline constexpr uint8_t SET_UP_MOD_REG = 0b0011'1101;        // set-up calccrc by standard of 14443A
-inline constexpr uint8_t SET_UP_TX_CONTROL_REG = 0b0100'0011; // set-uping TxControlReg to use both, tx1 and tx2, and
+inline constexpr uint8_t SET_UP_TX_CONTROL_REG = 0x43; // set-uping TxControlReg to use both, tx1 and tx2, and
                                                               // make field with power of difference between this 2
 inline constexpr uint8_t SET_UP_FORCE_ASK =
     (1U << 6U); // set-up TxAskREG to force 100% ask, what means during modulation pauses while transmitting to the card
@@ -28,5 +28,5 @@ inline constexpr uint8_t SET_CRC_ON_RX = (1U << 7U);
 inline constexpr uint8_t SET_UP_TRELOAD_LO_FOR_10MS = (1U << 4U);
 inline constexpr uint8_t SET_UP_TRELOAD_LO_FOR_1MS = (1U);
 inline constexpr uint8_t SET_UP_TRELOAD_LO_FOR_5MS = (1U << 3U);
-inline constexpr uint8_t SET_UP_TRELOAD_LO_FOR_0_5MS = 0U;
+inline constexpr uint8_t SET_UP_TRELOAD_LO_FOR_0_5MS = 1U;
 } // namespace rc522

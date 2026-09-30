@@ -9,7 +9,7 @@ class Rc522 {
     uint8_t fifo_buff[65]{};
     uint8_t version_{0xFF};
     Transport &t_;
-    TIMEOUT_LEVELS last_time_{TIMEOUT_LEVELS::Ti0_6};
+    TIMEOUT_LEVELS last_time_{TIMEOUT_LEVELS::Ti1};
     result_of_transaction error_decoding();
     void write_one_byte(uint8_t address, uint8_t value_to_write);
     void read_n_bytes(uint8_t *buff, uint8_t address, uint16_t N);

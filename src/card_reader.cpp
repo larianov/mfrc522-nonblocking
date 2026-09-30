@@ -25,7 +25,7 @@ result_of_card CardReader::step_select_fsm() {
         buff_uid_sak = {};
         uid_unfull = false;
         ic_com.start_exc(std::array<uint8_t, 2>{codes_of_cascades[0], NVB_COl_CODE}.data(), 2, false, false,
-                         TIMEOUT_LEVELS::Ti0_6);
+                         TIMEOUT_LEVELS::Ti1);
         select_.layer_ = 1;
         select_.state_ = Selecting::WAIT_UID;
         break;
@@ -64,7 +64,7 @@ result_of_card CardReader::step_select_fsm() {
         for (uint8_t i{2}; i < 7; i++) {
             retransmitting_arr[i] = arr[i - 2];
         }
-        ic_com.start_exc(retransmitting_arr, 7, false, true, TIMEOUT_LEVELS::Ti0_6);
+        ic_com.start_exc(retransmitting_arr, 7, false, true, TIMEOUT_LEVELS::Ti1);
         select_.state_ = Selecting::WAIT_SAK;
         break;
     }
@@ -91,7 +91,7 @@ result_of_card CardReader::step_select_fsm() {
             arr[0] = codes_of_cascades[select_.layer_ - 1];
             arr[1] = NVB_COl_CODE;
             uid_unfull = false;
-            ic_com.start_exc(arr, 2, false, false, TIMEOUT_LEVELS::Ti0_6);
+            ic_com.start_exc(arr, 2, false, false, TIMEOUT_LEVELS::Ti1);
         } else {
             if (uid_unfull)
                 return result_of_card::BITERROR;
@@ -128,7 +128,7 @@ result_of_card CardReader::halt() {
 result_of_card CardReader::step_activating_card(){
     switch (state_of_activating_uid_) {
         case Uid_activate::REQA:
-            ic_com.start_exc(&REQA_TRANS, 1, true, false, TIMEOUT_LEVELS::Ti0_6);
+            ic_com.start_exc(&REQA_TRANS, 1, true, false, TIMEOUT_LEVELS::Ti1);
             state_of_activating_uid_ = Uid_activate::ATQA;
             break;
         case Uid_activate::ATQA: {
