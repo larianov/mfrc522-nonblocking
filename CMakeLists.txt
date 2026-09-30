@@ -30,6 +30,7 @@ add_library(rc522::rc522 ALIAS rc522)
 
 target_sources(rc522 INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rc522.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/card_reader.cpp
 )
 
 target_include_directories(rc522 INTERFACE

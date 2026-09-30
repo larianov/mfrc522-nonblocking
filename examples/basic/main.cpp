@@ -3,48 +3,43 @@
 #include <cstdint>
 #include <hardware/gpio.h>
 #include <iostream>
+#include <pico/platform/common.h>
 #include <pico/stdio.h>
 #include <pico/time.h>
+#include "rc522/card_reader.hpp"
+#include "rc522/enums.hpp"
 #include "rc522/platform/pico/spi_transport.hpp"
 #include "rc522/rc522.hpp"
+#include "rc522/registers.hpp"
 
-static constexpr uint8_t cs_io = 5;
-static constexpr uint8_t VersionReg = (0x37 << 1) | (1u << 7); // 0x91 or 0x92
-static constexpr uint8_t CommandReg_W = (0x01 << 1);
-static constexpr uint8_t CommandReg_R = (0x01 << 1) | (1u << 7);
-
-
-int main(){
+int main() {
     stdio_init_all();
     sleep_ms(2000);
-    spi_init(spi0, 5'000'000);
-    uint32_t spi_mask = (1u << 2) | (1u << 3) | (1u << 4);
-    gpio_init(cs_io);
-    gpio_set_dir(cs_io, GPIO_OUT);
-    PicoTransport pt{cs_io, spi0};
-    Rc522 rc{pt};
-    
-    
-    gpio_put(cs_io, 1);
-    sleep_us(1);
-    gpio_set_function_masked(spi_mask, GPIO_FUNC_SPI);
-    
-    gpio_put(cs_io, 0);
-    uint8_t soft_reset[2] = {CommandReg_W, 0b0000'1111};
-    std::cout << spi_write_blocking(spi0, soft_reset, 2) << std::endl;
-    gpio_put(cs_io, 1);
 
-    uint8_t result = 0b1111'1111;
-    std::cout << get_absolute_time() << std::endl;
-    while ((result & (1u << 4))) {
-        gpio_put(cs_io, 0);
-        spi_write_blocking(spi0, &CommandReg_R, 1);
-        asm volatile("nop\n");
-        spi_read_blocking(spi0, 0xFF, &result, 1);
-        gpio_put(cs_io, 1);
+    uint32_t spi_mask = (1u << 2) | (1u << 3) | (1u << 4);
+    gpio_init(5);
+    gpio_set_dir(5, GPIO_OUT);
+    gpio_put(5, 1);
+    gpio_set_function_masked(spi_mask, GPIO_FUNC_SPI);
+    sleep_ms(200);
+    spi_init(spi0, 1'000'000);
+
+    rc522::PicoTransport pc{5, spi0};
+    rc522::Rc522 rc{pc};
+    if (rc.init() == rc522::result_of_op::SUCC) {
+        std::cout << "PIS" << std::endl;
     }
-    std::cout << get_absolute_time() << std::endl;
-    
-    sleep_ms(2000);
-    return 1;
+    rc522::CardReader cr{rc};
+    while (true) {
+        auto val = cr.get_uid();
+        sleep_us(1);
+        if (val.second == rc522::result_of_card::SUCC) {
+            for(;;){
+                for(uint8_t i{}; i < val.first.size; i++){
+                    std::cout << val.first.bytes[i] << ' ';
+                }
+                std::cout << std::endl;
+            }   
+        }
+    }
 }

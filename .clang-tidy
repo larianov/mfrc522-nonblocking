@@ -27,7 +27,10 @@ Checks: >-
   -hicpp-no-array-decay,
   -bugprone-easily-swappable-parameters,
   -readability-braces-around-statements,
-  -hicpp-braces-around-statements
+  -hicpp-braces-around-statements,
+  -hicpp-avoid-c-arrays,
+  -cppcoreguidelines-avoid-c-arrays,
+  -modernize-avoid-c-arrays
 
 WarningsAsErrors: ''
 
@@ -43,8 +46,8 @@ CheckOptions:
   - key: readability-function-cognitive-complexity.Threshold
     value: '80'
   - key:             readability-identifier-length.IgnoredVariableNames
-    value:           'x|y|z|v|i|j|k|l|m|r|w|h|cs'
+    value:           'x|y|z|t|t_|v|i|j|k|l|m|r|w|h|cs'
   - key:             readability-identifier-length.IgnoredParameterNames
-    value:           'x|y|z|v|i|j|k|l|m|r|w|h|cs'
+    value:           'x|y|z|t|t_|v|i|j|k|l|m|r|w|h|cs'
 
 SystemHeaders: false
