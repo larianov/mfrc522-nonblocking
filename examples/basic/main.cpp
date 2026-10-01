@@ -13,6 +13,24 @@
 #include "rc522/rc522.hpp"
 #include "rc522/registers.hpp"
 
+void get_uid(rc522::CardReader &rc){
+    rc.start_uid_transaction();
+    while (true) {
+        auto res = rc.poll();
+        if (res == rc522::result_of_card::WAIT) continue;
+        if (res == rc522::result_of_card::SUCC) break;
+        else return;;
+    }
+    auto val = rc.uid();
+    printf("UID: ");
+    for (uint8_t i{}; i < val.size; i++) {
+        printf("%02X ", val.bytes[i]);
+    }
+    printf("SAK: %02X", rc.Sak());
+    printf("\n");
+    
+}
+
 int main() {
     stdio_init_all();
     sleep_ms(2000);
@@ -32,19 +50,6 @@ int main() {
     }
     rc.change_gain(rc522::RFCfgReg_Gain::DB_48);
     rc522::CardReader cr{rc};
-    while (true) {
-          auto val = cr.get_uid();
-  
-          if (val.second == rc522::result_of_card::WAIT) {
-              continue;
-          }
-          if (val.second == rc522::result_of_card::SUCC) {
-              printf("UID: ");
-              for (uint8_t i{}; i < val.first.size; i++) {
-                  printf("%02X ", val.first.bytes[i]);
-              }
-              std::cout << std::endl;
-              sleep_ms(200);
-          }
-    }
+    for (;;) {get_uid(cr);}
+    
 }

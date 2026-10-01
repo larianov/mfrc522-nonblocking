@@ -1,5 +1,6 @@
 #pragma once
 #include "rc522/commands.hpp"
+#include <array>
 #include <cstdint>
 namespace rc522 {
 
@@ -34,6 +35,12 @@ enum class RFCfgReg_Gain : uint8_t {
 
 struct Uid {
     uint8_t bytes[10];
+    uint8_t size;
+};
+
+
+struct Read_Block{
+    uint8_t bytes[16];
     uint8_t size;
 };
 
@@ -78,21 +85,43 @@ enum class Uid_activate : uint8_t{
 };
 
 enum class READING_STATES : uint8_t {
-    WUPA,
-    ATQA,
-    RESOLVE_UID,
-    AUTH,
+    IDLE,
+    PREP_CARD_FOR_RW,
     READ_BOCK,
     HALT
 };
 
-enum class WRITING_STATES : uint8_t {
-    WUPA,
+enum key : uint8_t{
+    KeyA,
+    KeyB
+};
+
+struct reading_un{
+    READING_STATES rstate_;
+    uint8_t block;
+    std::array<uint8_t, 6> key_buff;
+    key keyv;
+};
+
+enum class PREPARE_CARD_FOR_RW : uint8_t {
+    WUPA, 
     ATQA,
     RESOLVE_UID,
-    AUTH,
+    AUTH_SENT,
+    AUTH_WAIT
+};
+
+enum class WRITING_STATES : uint8_t {
+    IDLE,
+    PREP_CARD_FOR_RW,
     WRITING_BOCK,
     HALT
 };
+
+enum class way_of_send : uint8_t{
+    TRANSIEVE,
+    MFAUNT
+};
+
 
 } // namespace rc522

@@ -1,6 +1,7 @@
 #include "rc522/card_reader.hpp"
 #include "rc522/commands_for_card.hpp"
 #include "rc522/enums.hpp"
+#include "rc522/rc522.hpp"
 #include <array>
 #include <cstdint>
 #include <variant>
@@ -168,9 +169,7 @@ std::pair<Uid, result_of_card> CardReader::get_uid() {
         op = Uid_states::RECIEVE_UID;
         state_of_activating_uid_ = {};
         select_ = {};
-    }
-    if (!std::holds_alternative<Uid_states>(op)) {
-        return {buff_uid_sak.first, result_of_card::OP_NOT_POSSIBLE};
+        halt_st_ = {};
     }
     auto &st = std::get<Uid_states>(op);
     switch (st) {
@@ -201,5 +200,114 @@ std::pair<Uid, result_of_card> CardReader::get_uid() {
     }
     return {buff_uid_sak.first, result_of_card::WAIT};
 }
+
+void CardReader::abort(){
+    op = std::monostate();
+}
+
+result_of_card CardReader::start_uid_transaction(){
+    if (!std::holds_alternative<std::monostate>(op)) {
+        return result_of_card::OP_NOT_POSSIBLE;
+    }
+    get_uid();
+    return result_of_card::WAIT;
+}
+
+result_of_card CardReader::start_read_transaction(uint8_t block, std::array<uint8_t, 6> keybuff, key keyv){
+    if (keybuff.size() != 6 || !std::holds_alternative<std::monostate>(op)) {
+        return result_of_card::OP_NOT_POSSIBLE;
+    }
+    op = reading_un{READING_STATES::PREP_CARD_FOR_RW, block, keybuff, keyv};
+    return result_of_card::WAIT;
+}
+
+result_of_card CardReader::poll(){
+    if (std::holds_alternative<std::monostate>(op)) {
+        return result_of_card::OP_NOT_POSSIBLE;
+    }
+    if (std::holds_alternative<Uid_states>(op)) {
+        return get_uid().second;
+    }
+    else {
+        return result_of_card::OP_NOT_POSSIBLE;
+    }
+}
+
+result_of_card CardReader::step_preparing_card(uint8_t *keybuff, key keyv, uint8_t block){
+    switch (prep_st) {
+        case PREPARE_CARD_FOR_RW::WUPA:
+        {
+            ic_com.start_exc(&WUPA_TRANS, 1, true, false, TIMEOUT_LEVELS::Ti1);
+            prep_st = PREPARE_CARD_FOR_RW::ATQA;
+            break;
+        }
+        case PREPARE_CARD_FOR_RW::ATQA:
+        {
+            auto res = ic_com.check_exc();
+            if (res != result_of_transaction::SUCC) {
+                auto res_err = convert_error(res);
+                if (res_err == result_of_card::WAIT)
+                    break;
+                return res_err;
+            }
+            uint8_t temp_buf[2];
+            res = ic_com.recieve_exc(temp_buf, 2);
+            if (res != result_of_transaction::SUCC) {
+                auto res_err = convert_error(res);
+                return result_of_card::BITERROR;
+            }
+            prep_st = PREPARE_CARD_FOR_RW::RESOLVE_UID;
+            break;
+        }
+        case PREPARE_CARD_FOR_RW::RESOLVE_UID:
+        {
+            auto res = step_select_fsm();
+            if (res == result_of_card::WAIT)
+                break;
+            if (res == result_of_card::SUCC) {
+                prep_st = PREPARE_CARD_FOR_RW::AUTH_SENT;
+                break;
+            } else {
+                return res;
+            }   
+        }
+        case PREPARE_CARD_FOR_RW::AUTH_SENT:
+        {
+            if ((buff_uid_sak.second == 0x08 && block > 63) || (buff_uid_sak.second == 0x18 && block > 255) || (buff_uid_sak.second == 0x09 && block > 19) || (buff_uid_sak.second != 0x08 && buff_uid_sak.second != 0x18 && buff_uid_sak.second != 0x09)) {
+                return result_of_card::OP_NOT_POSSIBLE;
+            }
+            uint8_t arr_for_auth[12];
+            uint8_t size{};
+            if (keyv == KeyA) arr_for_auth[size++] = CMD_AUTH_CODE[0];
+            else arr_for_auth[size++] = CMD_AUTH_CODE[1];
+            arr_for_auth[size++] = block;
+            for(uint8_t i{0}; i < 6; i++){arr_for_auth[size++] = keybuff[i];}
+            uint8_t offset{};
+            if (buff_uid_sak.first.size == 10) offset = 6;
+            else if (buff_uid_sak.first.size == 7) offset = 3;
+            for (uint8_t i{}; i < 4; i++) {
+                arr_for_auth[size++] = buff_uid_sak.first.bytes[i+offset];
+            }
+            ic_com.start_exc(arr_for_auth, 12, false, false, TIMEOUT_LEVELS::Ti5, way_of_send::MFAUNT);
+            prep_st = PREPARE_CARD_FOR_RW::AUTH_WAIT;
+            break;
+        }
+        case PREPARE_CARD_FOR_RW::AUTH_WAIT:
+        {
+            auto res_err = ic_com.check_auth();
+            if (res_err == result_of_transaction::SUCC) return result_of_card::SUCC;
+            else if (res_err == result_of_transaction::WAIT) break;
+            else return convert_error(res_err);
+        }
+    }
+    return result_of_card::WAIT;
+}
+
+
+Uid CardReader::uid()const{return buff_uid_sak.first;}
+
+uint8_t CardReader::Sak()const{return buff_uid_sak.second;}
+
+
 
  }// namespace rc522

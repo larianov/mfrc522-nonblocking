@@ -159,7 +159,7 @@ result_of_transaction Rc522::error_decoding() {
     }
 }
 
-void Rc522::start_exc(const uint8_t *arr, uint16_t size, bool byt7e, bool crc, TIMEOUT_LEVELS time_levels) {
+void Rc522::start_exc(const uint8_t *arr, uint16_t size, bool byt7e, bool crc, TIMEOUT_LEVELS time_levels, way_of_send wayt) {
     clear_status();
     if (time_levels != last_time_) {
         switch (time_levels) {
@@ -185,6 +185,11 @@ void Rc522::start_exc(const uint8_t *arr, uint16_t size, bool byt7e, bool crc, T
 
     for (uint16_t i{}; i < size; i++) {
         write_one_byte(FIFODataReg, arr[i]);
+    }
+    if (wayt == way_of_send::MFAUNT) {
+        write_one_byte(BitFramingReg, START_TRANSMISSION_FULL_FOR_MFAUT);
+        write_one_byte(CommandReg, CMD_MFAuthent);
+        return;
     }
     write_one_byte(CommandReg, CMD_Transceive);
     if (!byt7e)
@@ -214,4 +219,21 @@ result_of_transaction Rc522::recieve_exc(uint8_t *arr, uint8_t size) {
     }
     return result_of_transaction::SUCC;
 }
+
+uint32_t Rc522::get_time(){return t_.microus_32();}
+
+result_of_transaction Rc522::check_auth(){
+    uint8_t byte = read_one_byte(Status2Reg);
+    if ((byte & IS_MFCrypto1On) == IS_MFCrypto1On) {
+        return result_of_transaction::SUCC;
+    }
+    byte = read_one_byte(ComIrqReg);
+    if ((byte & (1U << 1U)) == (1U << 1U)) {
+        return error_decoding();
+    } else if ((byte & 1U) == 1U) {
+        return result_of_transaction::Time_out;
+     }
+    return result_of_transaction::WAIT;
+}
+
 } // namespace rc522

@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <sys/_intsup.h>
 namespace rc522 {
 
 inline constexpr uint8_t CMD_SOFT_RESET = 0b0000'1111;
@@ -20,6 +21,8 @@ inline constexpr uint8_t CLEAR_M_BITS_ComIrqReg = 0b0'1111'111;
 inline constexpr uint8_t CLEAR_M_BITS_DivIrqReg = 0b0'1111'111;
 inline constexpr uint8_t CMD_Transceive = 0b0000'1100;
 inline constexpr uint8_t START_TRANSMISSION_FOR_REQA = 0b1'0000'111;
+inline constexpr uint8_t START_TRANSMISSION_FULL_FOR_MFAUT = 0x00;
+inline constexpr uint8_t CMD_MFAuthent = 0b0000'1110;
 inline constexpr uint8_t START_TRANSMISSION_FULL = 0b1'0000'000;
 inline constexpr uint8_t CL_RESOLVER_1 = 0x93;
 inline constexpr uint8_t CL_RESOLVER_2 = 0x20;
@@ -29,4 +32,5 @@ inline constexpr uint8_t SET_UP_TRELOAD_LO_FOR_10MS = (1U << 4U);
 inline constexpr uint8_t SET_UP_TRELOAD_LO_FOR_1MS = (1U);
 inline constexpr uint8_t SET_UP_TRELOAD_LO_FOR_5MS = (1U << 3U);
 inline constexpr uint8_t SET_UP_TRELOAD_LO_FOR_0_5MS = 1U;
+inline constexpr uint8_t IS_MFCrypto1On = (1U << 3U);
 } // namespace rc522

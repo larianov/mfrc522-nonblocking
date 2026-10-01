@@ -14,7 +14,7 @@ struct anti_col {
 class CardReader {
   private:
     anti_col select_{};
-    std::variant<std::monostate, Uid_states, READING_STATES, WRITING_STATES> op;
+    std::variant<std::monostate, Uid_states, reading_un, WRITING_STATES> op;
     Halt_states halt_st_{};
     result_of_card convert_error(result_of_transaction err);
     Rc522 &ic_com;
@@ -24,10 +24,23 @@ class CardReader {
     std::pair<Uid, uint8_t> buff_uid_sak;
     bool uid_unfull{};
     result_of_card step_activating_card();
-  public:
-    explicit CardReader(Rc522 &ic_ref) : ic_com(ic_ref) {};
-    std::pair<Uid, result_of_card> get_uid(); // pollable func
-    std::pair<Uid, result_of_card> block_get_uid(uint32_t time_in_us); //blocking function, max 
 
+    PREPARE_CARD_FOR_RW prep_st{};
+    result_of_card step_preparing_card(uint8_t *keybuff, key keyv, uint8_t block);
+    
+    result_of_card read_card_st{};
+    Read_Block buff_read{};
+    std::pair<Uid, result_of_card> get_uid();
+    result_of_card get_read();
+    
+  public:
+    [[nodiscard]]Uid uid() const;
+    [[nodiscard]]uint8_t Sak() const; 
+    [[nodiscard]]Read_Block block() const;
+    result_of_card start_uid_transaction();
+    result_of_card start_read_transaction(uint8_t block, std::array<uint8_t, 6> keybuff, key keyv);
+    result_of_card poll();
+    void abort();
+    explicit CardReader(Rc522 &ic_ref) : ic_com(ic_ref) {};
 };
 } // namespace rc522

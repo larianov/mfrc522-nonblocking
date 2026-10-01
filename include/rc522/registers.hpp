@@ -2,7 +2,6 @@
 
 #include <cstdint>
 namespace rc522 {
-
 inline constexpr uint8_t CommandReg = (0x01);
 inline constexpr uint8_t VersionReg = (0x37);
 inline constexpr uint8_t TModeReg = 0x2A;
@@ -21,4 +20,5 @@ inline constexpr uint8_t BitFramingReg = 0x0D;
 inline constexpr uint8_t ErrorReg = 0x06;
 inline constexpr uint8_t TReloadVal_Hi = 0x2C;
 inline constexpr uint8_t TReloadVal_Lo = 0x2D;
+inline constexpr uint8_t Status2Reg = 0x08;
 } // namespace rc522
