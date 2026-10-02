@@ -1,6 +1,6 @@
 #pragma once
 #include <cstdint>
-#include <sys/_intsup.h>
+
 namespace rc522 {
 
 inline constexpr uint8_t CMD_SOFT_RESET = 0b0000'1111;

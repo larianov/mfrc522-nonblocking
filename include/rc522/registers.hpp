@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <sys/_intsup.h>
 namespace rc522 {
 inline constexpr uint8_t CommandReg = (0x01);
 inline constexpr uint8_t VersionReg = (0x37);

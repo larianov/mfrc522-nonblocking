@@ -5,9 +5,6 @@
 #include "rc522/transport.hpp"
 #include <cassert>
 #include <cstdint>
-#include <cstring>
-#include <filesystem>
-#include <utility>
 namespace rc522 {
 Rc522::Rc522(Transport &t) : t_(t) {};
 
@@ -159,7 +156,7 @@ result_of_transaction Rc522::error_decoding() {
     }
 }
 
-void Rc522::start_exc(const uint8_t *arr, uint16_t size, bool byt7e, bool crc, TIMEOUT_LEVELS time_levels, way_of_send wayt) {
+void Rc522::start_exc(const uint8_t *arr, uint16_t size, bool byt7e, bool tx_crc, TIMEOUT_LEVELS time_levels, way_of_send wayt, bool rx_crc) {
     clear_status();
     if (time_levels != last_time_) {
         switch (time_levels) {
@@ -175,9 +172,12 @@ void Rc522::start_exc(const uint8_t *arr, uint16_t size, bool byt7e, bool crc, T
         }
     }
     last_time_ = time_levels;
-    if (crc) {
+    if (rx_crc && tx_crc) {
         write_one_byte(TxModeReg, SET_CRC_ON_TX);
         write_one_byte(RxModeReg, SET_CRC_ON_RX);
+    }else if(tx_crc && !rx_crc){
+        write_one_byte(TxModeReg, SET_CRC_ON_TX);
+        write_one_byte(RxModeReg, 0);
     } else {
         write_one_byte(TxModeReg, 0);
         write_one_byte(RxModeReg, 0);
@@ -234,6 +234,12 @@ result_of_transaction Rc522::check_auth(){
         return result_of_transaction::Time_out;
      }
     return result_of_transaction::WAIT;
+}
+
+void Rc522::clear_mauth(){
+    uint8_t byte_rmw = read_one_byte(Status2Reg);
+    byte_rmw &= static_cast<uint8_t>(~static_cast<uint8_t>((1U << 3U)));
+    write_one_byte(Status2Reg, byte_rmw);
 }
 
 } // namespace rc522

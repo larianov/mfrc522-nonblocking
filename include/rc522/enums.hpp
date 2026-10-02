@@ -10,7 +10,7 @@ enum class result_of_op : uint8_t {
     WRONG_SOFT,
     DEVICE_TIMEOUT,
     REGISTERES_NOT_CHANGING,
-    SUCC
+    SUCC,
 };
 
 enum class result_of_transaction : uint8_t {
@@ -30,7 +30,7 @@ enum class RFCfgReg_Gain : uint8_t {
     DB_33 = 0b100,
     DB_38 = 0b101,
     DB_43 = 0b110,
-    DB_48 = 0b111
+    DB_48 = 0b111,
 };
 
 struct Uid {
@@ -52,48 +52,50 @@ enum class result_of_card : uint8_t {
     BITERROR,
     TIMEOUT,
     OP_NOT_POSSIBLE,
+    KEY_WAS_REJECTED,
     ERROR_FROM_IC,
+    AUTH_FAILED,
 };
 
 enum class Selecting : uint8_t {
     START,
     WAIT_UID,
-    WAIT_SAK
+    WAIT_SAK,
 };
 
 enum class Halt_states : uint8_t {
     START,
-    HALTING
+    HALTING,
 };
 
 enum class TIMEOUT_LEVELS : uint8_t {
     Ti1,
     Ti5,
-    Ti10
+    Ti10,
 };
 
 enum class Uid_states : uint8_t {
     RECIEVE_UID,
-    HALT
+    HALT,
 };
 
 
 enum class Uid_activate : uint8_t{
     REQA,
     ATQA,
-    RESOLVE_UID
+    RESOLVE_UID,
 };
 
 enum class READING_STATES : uint8_t {
     IDLE,
     PREP_CARD_FOR_RW,
     READ_BOCK,
-    HALT
+    HALT,
 };
 
-enum key : uint8_t{
+enum class key : uint8_t{
     KeyA,
-    KeyB
+    KeyB,
 };
 
 struct reading_un{
@@ -103,24 +105,58 @@ struct reading_un{
     key keyv;
 };
 
+enum class WRITING_STATES : uint8_t {
+    IDLE,
+    PREP_CARD_FOR_RW,
+    WRITING_PT1,
+    WRITING_PT2,
+    HALT,
+};
+
+struct writing_un{
+    WRITING_STATES rstate_;
+    uint8_t block;
+    std::array<uint8_t, 6> key_buff;
+    key keyv;
+    std::array<uint8_t, 16> write_buff;
+};
+
 enum class PREPARE_CARD_FOR_RW : uint8_t {
     WUPA, 
     ATQA,
     RESOLVE_UID,
     AUTH_SENT,
-    AUTH_WAIT
-};
-
-enum class WRITING_STATES : uint8_t {
-    IDLE,
-    PREP_CARD_FOR_RW,
-    WRITING_BOCK,
-    HALT
+    AUTH_WAIT,
 };
 
 enum class way_of_send : uint8_t{
     TRANSIEVE,
-    MFAUNT
+    MFAUNT,
+};
+
+enum class ALTERATION_OP : uint8_t{
+    INCREMENT = 0xC1,
+    DECREMENT = 0xC0,
+    RESTORE = 0xC2,
+};
+
+enum class ALTERATION_STATE : uint8_t{
+    IDLE,
+    PREP_CARD_FOR_RW,
+    WRITING_PT1,
+    WRITING_PT2,
+    TRANSFER,
+    HALT,
+};
+
+struct alteration_un{
+    ALTERATION_OP op;
+    ALTERATION_STATE rstate_;
+    uint8_t block_src;
+    uint8_t block_dst;
+    std::array<uint8_t, 6> key_buff;
+    int32_t operand;
+    key keyv;
 };
 
 

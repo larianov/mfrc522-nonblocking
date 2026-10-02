@@ -23,9 +23,10 @@ class Rc522 {
     result_of_op change_gain(RFCfgReg_Gain value);
     const char *version(uint8_t &version_mut) const;
     result_of_op set_power_state(uint8_t power_up); // 1 for power up, 0 for power_down
-    void start_exc(const uint8_t *arr, uint16_t size, bool byt7e, bool crc, TIMEOUT_LEVELS time_levels, way_of_send wayt = way_of_send::TRANSIEVE);
+    void start_exc(const uint8_t *arr, uint16_t size, bool byt7e, bool tx_crc, TIMEOUT_LEVELS time_levels, way_of_send wayt = way_of_send::TRANSIEVE, bool rx_crc = true);
     result_of_transaction check_exc();
     result_of_transaction check_auth();
+    void clear_mauth();
     result_of_transaction recieve_exc(uint8_t *arr, uint8_t size);
 };
 } // namespace rc522

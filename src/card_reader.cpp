@@ -167,6 +167,7 @@ result_of_card CardReader::step_activating_card(){
 std::pair<Uid, result_of_card> CardReader::get_uid() {
     if (std::holds_alternative<std::monostate>(op)) {
         op = Uid_states::RECIEVE_UID;
+        ic_com.clear_mauth();
         state_of_activating_uid_ = {};
         select_ = {};
         halt_st_ = {};
@@ -214,10 +215,46 @@ result_of_card CardReader::start_uid_transaction(){
 }
 
 result_of_card CardReader::start_read_transaction(uint8_t block, std::array<uint8_t, 6> keybuff, key keyv){
-    if (keybuff.size() != 6 || !std::holds_alternative<std::monostate>(op)) {
+    if (!std::holds_alternative<std::monostate>(op)) {
         return result_of_card::OP_NOT_POSSIBLE;
     }
-    op = reading_un{READING_STATES::PREP_CARD_FOR_RW, block, keybuff, keyv};
+    op = reading_un{READING_STATES::IDLE, block, keybuff, keyv};
+    get_read();
+    return result_of_card::WAIT;
+}
+
+constexpr bool is_trailer(uint8_t block) {
+    return block < 128 ? (block % 4 == 3) : (block % 16 == 15);
+}
+
+constexpr uint8_t sector_of(uint8_t block) {
+    return block < 128 ? block / 4 : 32 + ((block - 128) / 16);
+}
+
+result_of_card CardReader::start_alteration_op(uint8_t block_src, std::array<uint8_t, 6> keybuff, key keyv, uint8_t block_dst, ALTERATION_OP oper, int32_t operand){
+    if (!std::holds_alternative<std::monostate>(op)) {
+        return result_of_card::OP_NOT_POSSIBLE;
+    }
+    if (block_src == 0 || block_dst == 0 || is_trailer(block_src) || is_trailer(block_dst) || sector_of(block_src) != sector_of(block_dst)) {return result_of_card::OP_NOT_POSSIBLE;}
+    op = alteration_un{oper, ALTERATION_STATE::IDLE, block_src, block_dst, keybuff, operand, keyv};
+    return result_of_card::WAIT;
+}
+
+result_of_card CardReader::start_write_transaction(uint8_t block, std::array<uint8_t, 6> keybuff, key keyv, std::array<uint8_t, 16>write_buff, bool REQUIRED){
+    if (!std::holds_alternative<std::monostate>(op)) {
+        return result_of_card::OP_NOT_POSSIBLE;
+    }
+    if (block == 0) return result_of_card::OP_NOT_POSSIBLE;
+    if (((block % 4) == 3 && block < 128) || (block >= 128 && (block) % 16 == 15)) {
+        if (!REQUIRED) return result_of_card::OP_NOT_POSSIBLE;
+        auto byte6 = write_buff[6];
+        auto byte7 = write_buff[7];
+        auto byte8 = write_buff[8];
+        bool correct = ((~(byte6 & 0x0F) & 0x0F) == (byte7 >> 4U)) && ((~(byte6 & 0xF0U) & 0xF0U) == ((byte8 & 0x0F) << 4U)) && ((~(byte7 & 0x0F) & 0x0F) == (byte8 >> 4U));
+        if (!correct) return result_of_card::OP_NOT_POSSIBLE;
+    }
+    op = writing_un{WRITING_STATES::IDLE, block, keybuff, keyv, write_buff};
+    get_write();
     return result_of_card::WAIT;
 }
 
@@ -228,7 +265,16 @@ result_of_card CardReader::poll(){
     if (std::holds_alternative<Uid_states>(op)) {
         return get_uid().second;
     }
-    else {
+    else if (std::holds_alternative<reading_un>(op)) {
+        return get_read();
+    }
+    else if (std::holds_alternative<writing_un>(op)) {
+        return get_write();
+    }
+    else if (std::holds_alternative<alteration_un>(op)) {
+        return get_alteration();
+    } 
+    else{
         return result_of_card::OP_NOT_POSSIBLE;
     }
 }
@@ -278,7 +324,7 @@ result_of_card CardReader::step_preparing_card(uint8_t *keybuff, key keyv, uint8
             }
             uint8_t arr_for_auth[12];
             uint8_t size{};
-            if (keyv == KeyA) arr_for_auth[size++] = CMD_AUTH_CODE[0];
+            if (keyv == key::KeyA) arr_for_auth[size++] = CMD_AUTH_CODE[0];
             else arr_for_auth[size++] = CMD_AUTH_CODE[1];
             arr_for_auth[size++] = block;
             for(uint8_t i{0}; i < 6; i++){arr_for_auth[size++] = keybuff[i];}
@@ -297,7 +343,294 @@ result_of_card CardReader::step_preparing_card(uint8_t *keybuff, key keyv, uint8
             auto res_err = ic_com.check_auth();
             if (res_err == result_of_transaction::SUCC) return result_of_card::SUCC;
             else if (res_err == result_of_transaction::WAIT) break;
-            else return convert_error(res_err);
+            else return result_of_card::AUTH_FAILED;
+        }
+    }
+    return result_of_card::WAIT;
+}
+
+result_of_card CardReader::get_read(){
+    auto &st = std::get<reading_un>(op);
+    switch (st.rstate_) {
+        case READING_STATES::IDLE:
+        {
+            ic_com.clear_mauth();
+            state_of_activating_uid_ = {};
+            select_ = {};
+            prep_st = {};
+            halt_st_ = {};   
+            st.rstate_ = READING_STATES::PREP_CARD_FOR_RW;
+            break;
+        }
+        case READING_STATES::PREP_CARD_FOR_RW:
+        {
+            auto res_err = step_preparing_card(st.key_buff.data(), st.keyv, st.block);
+            if (res_err == result_of_card::WAIT) break;
+            if (res_err == result_of_card::SUCC){
+                st.rstate_ = READING_STATES::READ_BOCK;
+                ic_com.start_exc(std::array<uint8_t, 2>{CMD_MIFARE_READ, st.block}.data(), 2, false, true, TIMEOUT_LEVELS::Ti5);
+                break;
+            } 
+            else {
+                op = std::monostate();
+                return res_err;
+            }
+        }
+        case READING_STATES::READ_BOCK:
+        {
+            auto res = ic_com.check_exc();
+            if (res == result_of_transaction::WAIT) break;
+            if (res != result_of_transaction::SUCC){
+                op = std::monostate();
+                return convert_error(res);
+            }
+            res = ic_com.recieve_exc(buff_read.bytes, 16);
+            if (res != result_of_transaction::SUCC){
+                op = std::monostate();
+                return result_of_card::OP_NOT_POSSIBLE;
+            }
+            buff_read.size = 16;
+            st.rstate_ = READING_STATES::HALT;
+            break;
+        }
+        case READING_STATES::HALT:
+        {
+            auto res_err = halt();
+            if (res_err == result_of_card::WAIT) break;
+            if (res_err == result_of_card::TIMEOUT){
+                op = std::monostate();
+                return result_of_card::SUCC;
+            }
+            else {
+                op = std::monostate();
+                return res_err;
+            }
+        }
+    }
+    return result_of_card::WAIT;
+}
+
+
+result_of_card CardReader::get_write(){
+    auto &st = std::get<writing_un>(op);
+    switch (st.rstate_) {
+        case WRITING_STATES::IDLE:
+        {
+            ic_com.clear_mauth();
+            state_of_activating_uid_ = {};
+            select_ = {};
+            prep_st = {};
+            halt_st_ = {};   
+            st.rstate_ = WRITING_STATES::PREP_CARD_FOR_RW;
+            break;
+        }
+        case WRITING_STATES::PREP_CARD_FOR_RW:
+        {
+            auto res_err = step_preparing_card(st.key_buff.data(), st.keyv, st.block);
+            if (res_err == result_of_card::WAIT) break;
+            if (res_err == result_of_card::SUCC){
+                st.rstate_ = WRITING_STATES::WRITING_PT1;
+                ic_com.start_exc(std::array<uint8_t, 2>{CMD_MIFARE_WRITE, st.block}.data(), 2, false, true, TIMEOUT_LEVELS::Ti10, way_of_send::TRANSIEVE, false);
+                break;
+            } 
+            else {
+                op = std::monostate();
+                return res_err;
+            }
+        }
+        case WRITING_STATES::WRITING_PT1:
+        {
+            auto res = ic_com.check_exc();
+            if (res == result_of_transaction::WAIT) break;
+            if (res != result_of_transaction::SUCC){
+                op = std::monostate();
+                return convert_error(res);
+            }
+            uint8_t val{};
+            res = ic_com.recieve_exc(&val, 1);
+            if (res == result_of_transaction::WAIT) break;
+            if(res != result_of_transaction::SUCC){
+                op = std::monostate();
+                return convert_error(res);
+            }
+            val &= 0b0000'1111U;
+            if (val == 0x0A) {
+                ic_com.start_exc(st.write_buff.data(), 16, false, true, TIMEOUT_LEVELS::Ti10, way_of_send::TRANSIEVE, false);
+                st.rstate_ = WRITING_STATES::WRITING_PT2;
+                break;
+            }
+            else if (val == 0x00 || val == 0x04) {
+                op = std::monostate();
+                return result_of_card::OP_NOT_POSSIBLE;
+            }
+            else {
+                op = std::monostate();
+                return result_of_card::BITERROR;
+            }
+        }
+        case WRITING_STATES::WRITING_PT2:
+        {
+            auto res = ic_com.check_exc();
+            if (res == result_of_transaction::WAIT) break;
+            if (res != result_of_transaction::SUCC){
+                op = std::monostate();
+                return convert_error(res);
+            }
+            uint8_t val{};
+            res = ic_com.recieve_exc(&val, 1);
+            
+            if (res == result_of_transaction::WAIT) break;
+            if(res != result_of_transaction::SUCC){
+                op = std::monostate();
+                return convert_error(res);
+            }
+            val &= 0b0000'1111U;
+            if (val == 0x0A) {
+                st.rstate_ = WRITING_STATES::HALT;
+                break;
+            }
+            else if (val == 0x00 || val == 0x04) {
+                op = std::monostate();
+                return result_of_card::OP_NOT_POSSIBLE;
+            }
+            else{
+                op = std::monostate();
+                return result_of_card::BITERROR;
+            }
+        }
+        case WRITING_STATES::HALT:
+        {
+            auto res_err = halt();
+            if (res_err == result_of_card::WAIT) break;
+            if (res_err == result_of_card::TIMEOUT){
+                op = std::monostate();
+                return result_of_card::SUCC;
+            }
+            else {
+                op = std::monostate();
+                return res_err;
+            }
+        }
+    }
+    return result_of_card::WAIT;
+}
+
+result_of_card CardReader::get_alteration(){
+    auto &st = std::get<alteration_un>(op);
+    switch (st.rstate_) {
+        case ALTERATION_STATE::IDLE:
+        {   
+            ic_com.clear_mauth();
+            state_of_activating_uid_ = {};
+            select_ = {};
+            prep_st = {};
+            halt_st_ = {};   
+            st.rstate_ = ALTERATION_STATE::PREP_CARD_FOR_RW;
+            break;
+        }
+        case ALTERATION_STATE::PREP_CARD_FOR_RW:
+        {
+            auto res_err = step_preparing_card(st.key_buff.data(), st.keyv, st.block_src);
+            if (res_err == result_of_card::WAIT) break;
+            if (res_err == result_of_card::SUCC){
+                st.rstate_ = ALTERATION_STATE::WRITING_PT1;
+                ic_com.start_exc(std::array<uint8_t, 2>{static_cast<uint8_t>(st.op), st.block_src}.data(), 2, false, true, TIMEOUT_LEVELS::Ti5, way_of_send::TRANSIEVE, false);
+                break;
+            } 
+            else {
+                op = std::monostate();
+                return res_err;
+            }
+        }
+        case ALTERATION_STATE::WRITING_PT1:
+        {
+            auto res = ic_com.check_exc();
+            if (res == result_of_transaction::WAIT) break;
+            if (res != result_of_transaction::SUCC){
+                op = std::monostate();
+                return convert_error(res);
+            }
+            uint8_t val{};
+            res = ic_com.recieve_exc(&val, 1);
+            
+            if (res == result_of_transaction::WAIT) break;
+            if(res != result_of_transaction::SUCC){
+                op = std::monostate();
+                return convert_error(res);
+            }
+            val &= 0b0000'1111U;
+            if (val == 0x0A) {
+                st.rstate_ = ALTERATION_STATE::WRITING_PT2;
+                auto v = static_cast<uint32_t>(st.operand);
+                std::array<uint8_t, 4> bytes{};
+                for (uint8_t i{}; i < 4; i++) {
+                    bytes[i] = static_cast<uint8_t>(v >> (8U * i));
+                }
+                ic_com.start_exc(bytes.data(), bytes.size(), false, true, TIMEOUT_LEVELS::Ti5, way_of_send::TRANSIEVE, false);
+                break;
+            }
+            else if (val == 0x00 || val == 0x04) {
+                op = std::monostate();
+                return result_of_card::OP_NOT_POSSIBLE;
+            }
+            else{
+                op = std::monostate();
+                return result_of_card::BITERROR;
+            }
+        }
+        case ALTERATION_STATE::WRITING_PT2:
+        {
+            auto res = ic_com.check_exc();
+            if (res == result_of_transaction::WAIT) break;
+            if (res != result_of_transaction::Time_out) {
+                op = std::monostate();
+                return convert_error(res);
+            }
+            ic_com.start_exc(std::array<uint8_t, 2>{CMD_MIFARE_TRANSFER, st.block_dst}.data(), 2, false, true, TIMEOUT_LEVELS::Ti10, way_of_send::TRANSIEVE, false);
+            st.rstate_ = ALTERATION_STATE::TRANSFER;
+            break;
+        }
+        case ALTERATION_STATE::TRANSFER:
+        {
+            auto res = ic_com.check_exc();
+            if (res == result_of_transaction::WAIT) break;
+            if (res != result_of_transaction::SUCC){
+                op = std::monostate();
+                return convert_error(res);
+            }
+            uint8_t val{};
+            res = ic_com.recieve_exc(&val, 1);
+            if (res == result_of_transaction::WAIT) break;
+            if(res != result_of_transaction::SUCC){
+                op = std::monostate();
+                return convert_error(res);
+            }
+            val &= 0b0000'1111U;
+            if (val == 0x0A) {
+                st.rstate_ = ALTERATION_STATE::HALT;
+                break;
+            }
+            else if (val == 0x00 || val == 0x04) {
+                op = std::monostate();
+                return result_of_card::OP_NOT_POSSIBLE;
+            }
+            else{
+                op = std::monostate();
+                return result_of_card::BITERROR;
+            }
+        }
+        case ALTERATION_STATE::HALT:
+        {
+            auto res_err = halt();
+            if (res_err == result_of_card::WAIT) break;
+            if (res_err == result_of_card::TIMEOUT){
+                op = std::monostate();
+                return result_of_card::SUCC;
+            }
+            else {
+                op = std::monostate();
+                return res_err;
+            }
         }
     }
     return result_of_card::WAIT;
@@ -308,6 +641,7 @@ Uid CardReader::uid()const{return buff_uid_sak.first;}
 
 uint8_t CardReader::Sak()const{return buff_uid_sak.second;}
 
+Read_Block CardReader::block()const{return buff_read;}
 
 
  }// namespace rc522
