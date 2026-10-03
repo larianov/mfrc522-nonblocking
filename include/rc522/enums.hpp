@@ -82,7 +82,7 @@ enum class Uid_states : uint8_t {
 
 
 enum class Uid_activate : uint8_t{
-    REQA,
+    REQA_WUPA,
     ATQA,
     RESOLVE_UID,
 };
@@ -123,9 +123,7 @@ struct writing_un{
 };
 
 enum class PREPARE_CARD_FOR_RW : uint8_t {
-    WUPA, 
-    ATQA,
-    RESOLVE_UID,
+    SELECTING,
     AUTH_SENT,
     AUTH_WAIT,
 };

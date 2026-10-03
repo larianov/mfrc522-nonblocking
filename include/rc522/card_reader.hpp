@@ -25,7 +25,7 @@ class CardReader {
     Uid_activate state_of_activating_uid_{};
     std::pair<Uid, uint8_t> buff_uid_sak;
     bool uid_unfull{};
-    result_of_card step_activating_card();
+    result_of_card step_activating_card(bool wupa = false);
     result_of_card check_ack();
     PREPARE_CARD_FOR_RW prep_st{};
     result_of_card step_preparing_card(uint8_t *keybuff, key keyv, uint8_t block);
@@ -34,7 +34,7 @@ class CardReader {
     result_of_card read_card_st{};
     Read_Block buff_read{};
     
-    std::pair<Uid, result_of_card> get_uid();
+    result_of_card get_uid();
     result_of_card get_read();
     result_of_card get_write();
     result_of_card get_alteration();

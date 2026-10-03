@@ -117,21 +117,26 @@ result_of_card CardReader::halt() {
         break;
     case Halt_states::HALTING:
         {
-        auto result = ic_com.check_exc();
-        if (result == result_of_transaction::WAIT) {
-            break;
-        }
-        halt_st_ = Halt_states::START;
-        return convert_error(result);
+            auto result = ic_com.check_exc();
+            if (result == result_of_transaction::WAIT) {
+                break;
+            }
+            halt_st_ = Halt_states::START;
+            auto res = convert_error(result);
+            if (res == result_of_card::TIMEOUT) {
+                res = result_of_card::SUCC;
+            }
+            return res;
         }
     }
     return result_of_card::WAIT;
 }
 
-result_of_card CardReader::step_activating_card(){
+result_of_card CardReader::step_activating_card(bool wupa){
     switch (state_of_activating_uid_) {
-        case Uid_activate::REQA:
-            ic_com.start_exc(&REQA_TRANS, 1, true, false, TIMEOUT_LEVELS::Ti1);
+        case Uid_activate::REQA_WUPA:
+            if(!wupa)ic_com.start_exc(&REQA_TRANS, 1, true, false, TIMEOUT_LEVELS::Ti1);
+            else ic_com.start_exc(&WUPA_TRANS, 1, true, false, TIMEOUT_LEVELS::Ti1);
             state_of_activating_uid_ = Uid_activate::ATQA;
             break;
         case Uid_activate::ATQA: {
@@ -156,7 +161,7 @@ result_of_card CardReader::step_activating_card(){
             if (res == result_of_card::WAIT)
                 break;
             if (res == result_of_card::SUCC) {
-                state_of_activating_uid_ = Uid_activate::REQA;
+                state_of_activating_uid_ = Uid_activate::REQA_WUPA;
                 return result_of_card::SUCC;
             } else {
                 return res;
@@ -166,7 +171,7 @@ result_of_card CardReader::step_activating_card(){
     return result_of_card::WAIT;
 }
 
-std::pair<Uid, result_of_card> CardReader::get_uid() {
+result_of_card CardReader::get_uid() {
     auto &st = std::get<Uid_states>(op);
     switch (st) {
         case Uid_states::IDLE:
@@ -182,22 +187,14 @@ std::pair<Uid, result_of_card> CardReader::get_uid() {
                 st = Uid_states::HALT;
             if (result == result_of_card::WAIT || result == result_of_card::SUCC) break;
             else{
-                return {buff_uid_sak.first, result};
+                return result;
             }
         }
         case Uid_states::HALT: {
-            auto res = halt();
-            if (res == result_of_card::WAIT)
-                break;
-            if (res == result_of_card::TIMEOUT){
-                return {buff_uid_sak.first, result_of_card::SUCC};
-            }
-            else{
-                return {buff_uid_sak.first, res};
-            }
+            return halt();
         }
     }
-    return {buff_uid_sak.first, result_of_card::WAIT};
+    return result_of_card::WAIT;
 }
 
 void CardReader::abort(){
@@ -268,7 +265,7 @@ result_of_card CardReader::poll(){
     }
     result_of_card res;
     if (std::holds_alternative<Uid_states>(op)) {
-        res = get_uid().second;
+        res = get_uid();
     }
     else if (std::holds_alternative<reading_un>(op)) {
         res = get_read();
@@ -288,41 +285,13 @@ result_of_card CardReader::poll(){
 
 result_of_card CardReader::step_preparing_card(uint8_t *keybuff, key keyv, uint8_t block){
     switch (prep_st) {
-        case PREPARE_CARD_FOR_RW::WUPA:
+        case PREPARE_CARD_FOR_RW::SELECTING:
         {
-            ic_com.start_exc(&WUPA_TRANS, 1, true, false, TIMEOUT_LEVELS::Ti1);
-            prep_st = PREPARE_CARD_FOR_RW::ATQA;
+            auto res = step_activating_card(true);
+            if(res == result_of_card::WAIT) break;
+            else if(res != result_of_card::SUCC) return res;
+            prep_st = PREPARE_CARD_FOR_RW::AUTH_SENT;
             break;
-        }
-        case PREPARE_CARD_FOR_RW::ATQA:
-        {
-            auto res = ic_com.check_exc();
-            if (res != result_of_transaction::SUCC) {
-                auto res_err = convert_error(res);
-                if (res_err == result_of_card::WAIT)
-                    break;
-                return res_err;
-            }
-            uint8_t temp_buf[2];
-            res = ic_com.recieve_exc(temp_buf, 2);
-            if (res != result_of_transaction::SUCC) {
-                auto res_err = convert_error(res);
-                return result_of_card::BITERROR;
-            }
-            prep_st = PREPARE_CARD_FOR_RW::RESOLVE_UID;
-            break;
-        }
-        case PREPARE_CARD_FOR_RW::RESOLVE_UID:
-        {
-            auto res = step_select_fsm();
-            if (res == result_of_card::WAIT)
-                break;
-            if (res == result_of_card::SUCC) {
-                prep_st = PREPARE_CARD_FOR_RW::AUTH_SENT;
-                break;
-            } else {
-                return res;
-            }   
         }
         case PREPARE_CARD_FOR_RW::AUTH_SENT:
         {
@@ -419,14 +388,7 @@ result_of_card CardReader::get_read(){
         }
         case READING_STATES::HALT:
         {
-            auto res_err = halt();
-            if (res_err == result_of_card::WAIT) break;
-            if (res_err == result_of_card::TIMEOUT){
-                return result_of_card::SUCC;
-            }
-            else {
-                return res_err;
-            }
+            return halt();
         }
     }
     return result_of_card::WAIT;
@@ -478,14 +440,7 @@ result_of_card CardReader::get_write(){
         }
         case WRITING_STATES::HALT:
         {
-            auto res_err = halt();
-            if (res_err == result_of_card::WAIT) break;
-            if (res_err == result_of_card::TIMEOUT){
-                return result_of_card::SUCC;
-            }
-            else {
-                return res_err;
-            }
+            return halt();
         }
     }
     return result_of_card::WAIT;
@@ -552,14 +507,7 @@ result_of_card CardReader::get_alteration(){
         }
         case ALTERATION_STATE::HALT:
         {
-            auto res_err = halt();
-            if (res_err == result_of_card::WAIT) break;
-            if (res_err == result_of_card::TIMEOUT){
-                return result_of_card::SUCC;
-            }
-            else {
-                return res_err;
-            }
+            return halt();
         }
     }
     return result_of_card::WAIT;

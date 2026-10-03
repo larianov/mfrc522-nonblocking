@@ -34,7 +34,7 @@ printf("\n");
 
 
 bool read(rc522::CardReader &rc){
-    rc.start_read_transaction(6, std::array<uint8_t, 6>{0xFF, 0XFF, 0XFF, 0XFF, 0XFF, 0XFF}, rc522::key::KeyA);
+    rc.start_read_transaction(5, std::array<uint8_t, 6>{0xFF, 0XFF, 0XFF, 0XFF, 0XFF, 0XFF}, rc522::key::KeyA);
     while (true) {
         auto res = rc.poll();
         if (res == rc522::result_of_card::WAIT) continue;
@@ -56,7 +56,7 @@ bool read(rc522::CardReader &rc){
 
 
 bool increment(rc522::CardReader &rc){
-    rc.start_alteration_op(5, std::array<uint8_t, 6>{0xFF, 0XFF, 0XFF, 0XFF, 0XFF, 0XFF}, rc522::key::KeyA, 6, rc522::ALTERATION_OP::DECREMENT, 1);
+    rc.start_alteration_op(5, std::array<uint8_t, 6>{0xFF, 0XFF, 0XFF, 0XFF, 0XFF, 0XFF}, rc522::key::KeyA, 5, rc522::ALTERATION_OP::INCREMENT, 1);
     while (true) {
         auto res = rc.poll();
         if (res == rc522::result_of_card::WAIT) continue;
