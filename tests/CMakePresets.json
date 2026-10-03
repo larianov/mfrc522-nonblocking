@@ -1,0 +1,15 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "pico",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/../build/tests",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "PICO_BOARD": "pico",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    }
+  ]
+}

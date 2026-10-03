@@ -112,7 +112,7 @@ result_of_card CardReader::step_select_fsm() {
 result_of_card CardReader::halt() {
     switch (halt_st_) {
     case Halt_states::START:
-        ic_com.start_exc(CMD_FOR_CARD_HALT, 2, false, false, TIMEOUT_LEVELS::Ti1);
+        ic_com.start_exc(CMD_FOR_CARD_HALT, 2, false, true, TIMEOUT_LEVELS::Ti1);
         halt_st_ = Halt_states::HALTING;
         break;
     case Halt_states::HALTING:
@@ -133,13 +133,13 @@ result_of_card CardReader::halt() {
 }
 
 result_of_card CardReader::step_activating_card(bool wupa){
-    switch (state_of_activating_uid_) {
-        case Uid_activate::REQA_WUPA:
+    switch (state_of_activating_card) {
+        case rc522::CARD_activate::REQA_WUPA:
             if(!wupa)ic_com.start_exc(&REQA_TRANS, 1, true, false, TIMEOUT_LEVELS::Ti1);
             else ic_com.start_exc(&WUPA_TRANS, 1, true, false, TIMEOUT_LEVELS::Ti1);
-            state_of_activating_uid_ = Uid_activate::ATQA;
+            state_of_activating_card = CARD_activate::ATQA;
             break;
-        case Uid_activate::ATQA: {
+        case rc522::CARD_activate::ATQA: {
             auto res = ic_com.check_exc();
             if (res != result_of_transaction::SUCC) {
                 auto res_err = convert_error(res);
@@ -153,15 +153,15 @@ result_of_card CardReader::step_activating_card(bool wupa){
                 auto res_err = convert_error(res);
                 return result_of_card::BITERROR;
             }
-            state_of_activating_uid_ = Uid_activate::RESOLVE_UID;
+            state_of_activating_card = CARD_activate::RESOLVE_UID;
             break;
         }
-        case rc522::Uid_activate::RESOLVE_UID: {
+        case rc522::CARD_activate::RESOLVE_UID: {
             auto res = step_select_fsm();
             if (res == result_of_card::WAIT)
                 break;
             if (res == result_of_card::SUCC) {
-                state_of_activating_uid_ = Uid_activate::REQA_WUPA;
+                state_of_activating_card = CARD_activate::REQA_WUPA;
                 return result_of_card::SUCC;
             } else {
                 return res;
@@ -172,19 +172,19 @@ result_of_card CardReader::step_activating_card(bool wupa){
 }
 
 result_of_card CardReader::get_uid() {
-    auto &st = std::get<Uid_states>(op);
-    switch (st) {
+    auto &st = std::get<uid_un>(op);
+    switch (st.rstates) {
         case Uid_states::IDLE:
         {
             begin_op();
-            st = Uid_states::RECIEVE_UID;
+            st.rstates = Uid_states::RECIEVE_UID;
             break;
         }
         case Uid_states::RECIEVE_UID:
         {
-            auto result = step_activating_card();
+            auto result = step_activating_card(static_cast<bool>(st.forcing_wake_up));
             if (result == result_of_card::SUCC) 
-                st = Uid_states::HALT;
+                st.rstates = Uid_states::HALT;
             if (result == result_of_card::WAIT || result == result_of_card::SUCC) break;
             else{
                 return result;
@@ -203,17 +203,17 @@ void CardReader::abort(){
 
 void CardReader::begin_op(){
     ic_com.clear_mauth();
-    state_of_activating_uid_ = {};
+    state_of_activating_card = {};
     select_ = {};
     prep_st = {};
     halt_st_ = {};   
 }
 
-result_of_card CardReader::start_uid_transaction(){
+result_of_card CardReader::start_uid_transaction(WAKING_CARD_UP_FOR_UID wc){
     if (!std::holds_alternative<std::monostate>(op)) {
         return result_of_card::OP_NOT_POSSIBLE;
     }
-    op = Uid_states::IDLE;
+    op = uid_un{Uid_states::IDLE, wc};
     return poll();
 }
 
@@ -264,7 +264,7 @@ result_of_card CardReader::poll(){
         return result_of_card::OP_NOT_POSSIBLE;
     }
     result_of_card res;
-    if (std::holds_alternative<Uid_states>(op)) {
+    if (std::holds_alternative<uid_un>(op)) {
         res = get_uid();
     }
     else if (std::holds_alternative<reading_un>(op)) {

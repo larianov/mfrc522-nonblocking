@@ -3,7 +3,6 @@
 #include "rc522/rc522.hpp"
 #include <array>
 #include <cstdint>
-#include <hardware/structs/resets.h>
 #include <utility>
 #include <variant>
 namespace rc522 {
@@ -16,13 +15,13 @@ struct anti_col {
 class CardReader {
   private:
     anti_col select_{};
-    std::variant<std::monostate, Uid_states, reading_un, writing_un, alteration_un> op;
+    std::variant<std::monostate, uid_un, reading_un, writing_un, alteration_un> op;
     Halt_states halt_st_{};
     static result_of_card convert_error(result_of_transaction err);
     Rc522 &ic_com;
     result_of_card step_select_fsm();
     result_of_card halt();
-    Uid_activate state_of_activating_uid_{};
+    CARD_activate state_of_activating_card{};
     std::pair<Uid, uint8_t> buff_uid_sak;
     bool uid_unfull{};
     result_of_card step_activating_card(bool wupa = false);
@@ -45,7 +44,7 @@ class CardReader {
     [[nodiscard]]uint8_t Sak() const; 
     [[nodiscard]]Read_Block block() const;
     
-    result_of_card start_uid_transaction();
+    result_of_card start_uid_transaction(WAKING_CARD_UP_FOR_UID wc = WAKING_CARD_UP_FOR_UID::REQA);
     result_of_card start_read_transaction(uint8_t block, std::array<uint8_t, 6> keybuff, key keyv);
     result_of_card start_write_transaction(uint8_t block, std::array<uint8_t, 6> keybuff, key keyv, std::array<uint8_t, 16> write_buff, bool REQUIRED);
     result_of_card start_alteration_op(uint8_t block_src, std::array<uint8_t, 6> keybuff, key keyv, uint8_t block_dst, ALTERATION_OP oper, int32_t operand);

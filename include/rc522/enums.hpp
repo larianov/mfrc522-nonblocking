@@ -80,8 +80,18 @@ enum class Uid_states : uint8_t {
     HALT,
 };
 
+enum class WAKING_CARD_UP_FOR_UID : uint8_t{
+    REQA = 0,//doesnt wake up card
+    WUPA = 1, //wake_up card
+};
 
-enum class Uid_activate : uint8_t{
+struct uid_un{
+    Uid_states rstates;
+    WAKING_CARD_UP_FOR_UID forcing_wake_up;
+};
+
+
+enum class CARD_activate : uint8_t{
     REQA_WUPA,
     ATQA,
     RESOLVE_UID,

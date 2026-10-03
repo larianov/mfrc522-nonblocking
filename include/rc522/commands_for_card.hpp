@@ -1,6 +1,5 @@
 #pragma once
 #include <cstdint>
-#include <sys/_intsup.h>
 
 namespace rc522 {
 inline constexpr uint8_t NVB_SEl_CODE = 0x70;
