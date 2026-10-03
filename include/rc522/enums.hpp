@@ -75,6 +75,7 @@ enum class TIMEOUT_LEVELS : uint8_t {
 };
 
 enum class Uid_states : uint8_t {
+    IDLE,
     RECIEVE_UID,
     HALT,
 };

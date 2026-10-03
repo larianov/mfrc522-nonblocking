@@ -26,10 +26,11 @@ class CardReader {
     std::pair<Uid, uint8_t> buff_uid_sak;
     bool uid_unfull{};
     result_of_card step_activating_card();
-
+    result_of_card check_ack();
     PREPARE_CARD_FOR_RW prep_st{};
     result_of_card step_preparing_card(uint8_t *keybuff, key keyv, uint8_t block);
-    
+
+    void begin_op();    
     result_of_card read_card_st{};
     Read_Block buff_read{};
     
