@@ -1,4 +1,5 @@
 #include "rc522/card_reader.hpp"
+#include "rc522/commands.hpp"
 #include "rc522/commands_for_card.hpp"
 #include "rc522/enums.hpp"
 #include "rc522/rc522.hpp"
@@ -70,7 +71,7 @@ result_of_card CardReader::step_select_fsm() {
         break;
     }
     case Selecting::WAIT_SAK: {
-        uint8_t val;
+        uint8_t val{};
         auto er_result = ic_com.check_exc();
         if (er_result != result_of_transaction::SUCC) {
             return convert_error(er_result);
@@ -79,7 +80,7 @@ result_of_card CardReader::step_select_fsm() {
         if (result != result_of_transaction::SUCC) {
             return result_of_card::BITERROR;
         }
-        if ((val & (1U << 2U)) == (1U << 2U)) {
+        if ((val & SAK_UID_NOT_COMPLETE) == SAK_UID_NOT_COMPLETE) {
             if (!uid_unfull) {
                 return result_of_card::BITERROR;
             }
@@ -203,6 +204,7 @@ void CardReader::abort(){
 
 void CardReader::begin_op(){
     ic_com.clear_mauth();
+    ic_com.clear_isr_flag();
     state_of_activating_card = {};
     select_ = {};
     prep_st = {};
@@ -214,7 +216,7 @@ result_of_card CardReader::start_uid_transaction(WAKING_CARD_UP_FOR_UID wc){
         return result_of_card::OP_NOT_POSSIBLE;
     }
     op = uid_un{Uid_states::IDLE, wc};
-    return poll();
+    return result_of_card::SUCC;
 }
 
 result_of_card CardReader::start_read_transaction(uint8_t block, std::array<uint8_t, 6> keybuff, key keyv){
@@ -222,7 +224,7 @@ result_of_card CardReader::start_read_transaction(uint8_t block, std::array<uint
         return result_of_card::OP_NOT_POSSIBLE;
     }
     op = reading_un{READING_STATES::IDLE, block, keybuff, keyv};
-    return poll();
+    return result_of_card::SUCC;
 }
 
 constexpr bool is_trailer(uint8_t block) {
@@ -239,7 +241,7 @@ result_of_card CardReader::start_alteration_op(uint8_t block_src, std::array<uin
     }
     if (block_src == 0 || block_dst == 0 || is_trailer(block_src) || is_trailer(block_dst) || sector_of(block_src) != sector_of(block_dst)) {return result_of_card::OP_NOT_POSSIBLE;}
     op = alteration_un{oper, ALTERATION_STATE::IDLE, block_src, block_dst, keybuff, operand, keyv};
-    return poll();
+    return result_of_card::SUCC;
 }
 
 result_of_card CardReader::start_write_transaction(uint8_t block, std::array<uint8_t, 6> keybuff, key keyv, std::array<uint8_t, 16>write_buff, bool REQUIRED){
@@ -256,7 +258,7 @@ result_of_card CardReader::start_write_transaction(uint8_t block, std::array<uin
         if (!correct) return result_of_card::OP_NOT_POSSIBLE;
     }
     op = writing_un{WRITING_STATES::IDLE, block, keybuff, keyv, write_buff};
-    return poll();
+    return result_of_card::SUCC;
 }
 
 result_of_card CardReader::poll(){
@@ -264,23 +266,26 @@ result_of_card CardReader::poll(){
         return result_of_card::OP_NOT_POSSIBLE;
     }
     result_of_card res;
-    if (std::holds_alternative<uid_un>(op)) {
-        res = get_uid();
+    while (true) {
+        if (std::holds_alternative<uid_un>(op)) {
+            res = get_uid();
+        }
+        else if (std::holds_alternative<reading_un>(op)) {
+            res = get_read();
+        }
+        else if (std::holds_alternative<writing_un>(op)) {
+            res = get_write();
+        }
+        else if (std::holds_alternative<alteration_un>(op)) {
+            res = get_alteration();
+        } 
+        else{
+            return result_of_card::OP_NOT_POSSIBLE;
+        }
+        if (res == result_of_card::WAIT && !ic_com.get_isr_flag()) continue;
+        if (res != result_of_card::WAIT) op = std::monostate();
+        return res;
     }
-    else if (std::holds_alternative<reading_un>(op)) {
-        res = get_read();
-    }
-    else if (std::holds_alternative<writing_un>(op)) {
-        res = get_write();
-    }
-    else if (std::holds_alternative<alteration_un>(op)) {
-        res = get_alteration();
-    } 
-    else{
-        return result_of_card::OP_NOT_POSSIBLE;
-    }
-    if (res != result_of_card::WAIT) op = std::monostate();
-    return res;
 }
 
 result_of_card CardReader::step_preparing_card(uint8_t *keybuff, key keyv, uint8_t block){

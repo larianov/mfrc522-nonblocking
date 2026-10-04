@@ -50,7 +50,6 @@ class CardReader {
     result_of_card start_alteration_op(uint8_t block_src, std::array<uint8_t, 6> keybuff, key keyv, uint8_t block_dst, ALTERATION_OP oper, int32_t operand);
     
     result_of_card poll();
-
     void abort();
 
     explicit CardReader(Rc522 &ic_ref) : ic_com(ic_ref) {};

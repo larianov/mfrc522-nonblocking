@@ -33,4 +33,6 @@ inline constexpr uint8_t SET_UP_TRELOAD_LO_FOR_1MS = (1U);
 inline constexpr uint8_t SET_UP_TRELOAD_LO_FOR_5MS = (1U << 3U);
 inline constexpr uint8_t SET_UP_TRELOAD_LO_FOR_0_5MS = 1U;
 inline constexpr uint8_t IS_MFCrypto1On = (1U << 3U);
+inline constexpr uint8_t SET_UP_IRQ_TRIGGER_EVENTS = 0xB3;
+inline constexpr uint8_t SAK_UID_NOT_COMPLETE = 1U << 2U;
 } // namespace rc522

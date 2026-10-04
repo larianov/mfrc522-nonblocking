@@ -70,7 +70,7 @@ result_of_op Rc522::set_power_state(uint8_t power_up) {
     return result_of_op::SUCC;
 }
 
-result_of_op Rc522::init() {
+result_of_op Rc522::init(bool set_up_irq) {
     write_one_byte(CommandReg, CMD_SOFT_RESET);
     uint8_t attempts{};
     while (attempts < 6) {
@@ -101,6 +101,9 @@ result_of_op Rc522::init() {
     // from this moment already 3 writings was succssessfull, so from writer side here can not be a problem
     write_one_byte(TxASKReg, SET_UP_FORCE_ASK);
     write_one_byte(TxControlReg, SET_UP_TX_CONTROL_REG);
+    if (set_up_irq) {
+        write_one_byte(ComIEnReg, SET_UP_IRQ_TRIGGER_EVENTS);
+    }
     return result_of_op::SUCC;
 }
 
@@ -158,6 +161,7 @@ result_of_transaction Rc522::error_decoding() {
 
 void Rc522::start_exc(const uint8_t *arr, uint16_t size, bool byt7e, bool tx_crc, TIMEOUT_LEVELS time_levels, way_of_send wayt, bool rx_crc) {
     clear_status();
+    flag_isr_act = true;
     if (time_levels != last_time_) {
         switch (time_levels) {
         case TIMEOUT_LEVELS::Ti10:
@@ -187,11 +191,13 @@ void Rc522::start_exc(const uint8_t *arr, uint16_t size, bool byt7e, bool tx_crc
         write_one_byte(FIFODataReg, arr[i]);
     }
     if (wayt == way_of_send::MFAUNT) {
+        write_one_byte(ComIrqReg, CLEAR_M_BITS_ComIrqReg);
         write_one_byte(BitFramingReg, START_TRANSMISSION_FULL_FOR_MFAUT);
         write_one_byte(CommandReg, CMD_MFAuthent);
         return;
     }
     write_one_byte(CommandReg, CMD_Transceive);
+    write_one_byte(ComIrqReg, CLEAR_M_BITS_ComIrqReg);
     if (!byt7e)
         write_one_byte(BitFramingReg, START_TRANSMISSION_FULL);
     else
@@ -201,10 +207,13 @@ void Rc522::start_exc(const uint8_t *arr, uint16_t size, bool byt7e, bool tx_crc
 result_of_transaction Rc522::check_exc() {
     uint8_t byte = read_one_byte(ComIrqReg);
     if ((byte & (1U << 1U)) == (1U << 1U)) {
+        flag_isr_act = false;
         return error_decoding();
     } else if ((byte & (1U << 5U)) == (1U << 5U)) {
+        flag_isr_act = false;
         return result_of_transaction::SUCC;
     } else if ((byte & 1U) == 1U) {
+        flag_isr_act = false;
         return result_of_transaction::Time_out;
      }
     return result_of_transaction::WAIT;
@@ -225,14 +234,17 @@ uint32_t Rc522::get_time(){return t_.microus_32();}
 result_of_transaction Rc522::check_auth(){
     uint8_t byte = read_one_byte(Status2Reg);
     if ((byte & IS_MFCrypto1On) == IS_MFCrypto1On) {
+        flag_isr_act = false;
         return result_of_transaction::SUCC;
     }
     byte = read_one_byte(ComIrqReg);
     if ((byte & (1U << 1U)) == (1U << 1U)) {
+        flag_isr_act = false;
         return error_decoding();
     } else if ((byte & 1U) == 1U) {
+        flag_isr_act = false;
         return result_of_transaction::Time_out;
-     }
+    }
     return result_of_transaction::WAIT;
 }
 
@@ -241,5 +253,10 @@ void Rc522::clear_mauth(){
     byte_rmw &= static_cast<uint8_t>(~static_cast<uint8_t>((1U << 3U)));
     write_one_byte(Status2Reg, byte_rmw);
 }
+
+
+bool Rc522::get_isr_flag()const{return flag_isr_act;}
+
+void Rc522::clear_isr_flag(){flag_isr_act = false;}
 
 } // namespace rc522

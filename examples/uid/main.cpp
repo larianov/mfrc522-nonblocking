@@ -5,6 +5,7 @@
 #include "rc522/platform/pico/spi_transport.hpp"
 #include "result_name.hpp"
 #include <cstdio>
+#include <pico/time.h>
 
 int main() {
     stdio_init_all();
@@ -21,15 +22,15 @@ int main() {
 
     rc522::PicoTransport transport{5, spi0};
     rc522::Rc522 rc{transport};
-    if (rc.init() != rc522::result_of_op::SUCC) {
+    if (rc.init(false) != rc522::result_of_op::SUCC) {
         printf("RC522 init failed, check wiring\n");
     } else {
         printf("RC522 init OK\n");
     }
     rc522::CardReader reader{rc};
-
     while (true) {
-        auto res = reader.start_uid_transaction(rc522::WAKING_CARD_UP_FOR_UID::WUPA);
+        reader.start_uid_transaction(rc522::WAKING_CARD_UP_FOR_UID::WUPA);
+        rc522::result_of_card res{rc522::result_of_card::WAIT};
         while (res == rc522::result_of_card::WAIT) {
             res = reader.poll();
         }
@@ -39,9 +40,8 @@ int main() {
             printf("UID: ");
             for (int i = 0; i < uid.size; i++) printf("%02X ", uid.bytes[i]);
             printf(" SAK: %02X\n", reader.Sak());
-        } else if (res != rc522::result_of_card::TIMEOUT) {
+        } else if (res == rc522::result_of_card::COLLISION) {
             printf("error: %s\n", result_name(res));
         }
-        sleep_ms(500);
     }
 }

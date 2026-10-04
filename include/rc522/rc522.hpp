@@ -13,12 +13,15 @@ class Rc522 {
     TIMEOUT_LEVELS last_time_{TIMEOUT_LEVELS::Ti1};
     result_of_transaction error_decoding();
     void write_one_byte(uint8_t address, uint8_t value_to_write);
+    bool flag_isr_act{};
     void read_n_bytes(uint8_t *buff, uint8_t address, uint16_t N);
     void clear_status();
   public:
     explicit Rc522(Transport &t);
-    result_of_op init();
+    result_of_op init(bool set_up_irq);
     uint32_t get_time();
+    void clear_isr_flag();
+    [[nodiscard]]bool get_isr_flag()const;
     uint8_t read_one_byte(uint8_t address); 
     result_of_op change_gain(RFCfgReg_Gain value);
     const char *version(uint8_t &version_mut) const;

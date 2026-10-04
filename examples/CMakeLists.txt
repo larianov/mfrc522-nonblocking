@@ -7,7 +7,7 @@ pico_sdk_init()
 
 add_subdirectory(.. rc522)
 
-foreach(name uid read write multi)
+foreach(name uid read write multi irq)
     add_executable(${name} ${name}/main.cpp)
     target_include_directories(${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_compile_options(${name} PRIVATE -Wall -Wextra)
