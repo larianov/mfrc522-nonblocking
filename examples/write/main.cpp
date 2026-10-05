@@ -21,7 +21,7 @@ int main() {
 
     rc522::PicoTransport transport{5, spi0};
     rc522::Rc522 rc{transport};
-    if (rc.init() != rc522::result_of_op::SUCC) {
+    if (rc.init(false) != rc522::result_of_op::SUCC) {
         printf("RC522 init failed, check wiring\n");
     } else {
         printf("RC522 init OK\n");
@@ -33,7 +33,8 @@ int main() {
     const std::array<uint8_t, 16> data{'h', 'e', 'l', 'l', 'o', ' ', 'D', 'a', 'v', 'i', 'd'};
 
     while (true) {
-        auto res = reader.start_write_transaction(block, key, rc522::key::KeyA, data, false);
+        reader.start_write_transaction(block, key, rc522::key::KeyA, data, false);
+        rc522::result_of_card res{rc522::result_of_card::WAIT};
         while (res == rc522::result_of_card::WAIT) {
             res = reader.poll();
         }

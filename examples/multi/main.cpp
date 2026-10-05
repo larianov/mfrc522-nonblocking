@@ -10,8 +10,9 @@
 const uint8_t block = 5;
 const std::array<uint8_t, 6> key{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-bool read_value(rc522::CardReader &reader) {
-    auto res = reader.start_read_transaction(block, key, rc522::key::KeyA);
+bool read_block(rc522::CardReader &reader) {
+    reader.start_read_transaction(block, key, rc522::key::KeyA);
+    rc522::result_of_card res{rc522::result_of_card::WAIT};
     while (res == rc522::result_of_card::WAIT) {
         res = reader.poll();
     }
@@ -20,8 +21,9 @@ bool read_value(rc522::CardReader &reader) {
         return false;
     }
     auto data = reader.block();
-    int32_t value = data.bytes[0] | data.bytes[1] << 8 | data.bytes[2] << 16 | data.bytes[3] << 24;
-    printf("value: %ld\n", static_cast<long>(value));
+    printf("block %d: ", block);
+    for (int i = 0; i < data.size; i++) printf("%02X ", data.bytes[i]);
+    printf("\n");
     return true;
 }
 
@@ -52,7 +54,8 @@ int main() {
                                        0x00, 0x00, 0x00, 0x00, block, 0xFA, block, 0xFA};
 
     while (true) {
-        auto res = reader.start_write_transaction(block, key, rc522::key::KeyA, zero, false);
+        reader.start_write_transaction(block, key, rc522::key::KeyA, zero, false);
+        rc522::result_of_card res{rc522::result_of_card::WAIT};
         while (res == rc522::result_of_card::WAIT) {
             res = reader.poll();
         }
@@ -63,12 +66,13 @@ int main() {
         sleep_ms(500);
     }
     printf("block %d set to 0\n", block);
-    read_value(reader);
+    read_block(reader);
 
     while (true) {
         sleep_ms(500);
 
-        auto res = reader.start_alteration_op(block, key, rc522::key::KeyA, block, rc522::ALTERATION_OP::INCREMENT, 1);
+        reader.start_alteration_op(block, key, rc522::key::KeyA, block, rc522::ALTERATION_OP::INCREMENT, 1);
+        rc522::result_of_card res{rc522::result_of_card::WAIT};
         while (res == rc522::result_of_card::WAIT) {
             res = reader.poll();
         }
@@ -76,6 +80,6 @@ int main() {
             printf("increment error: %s\n", result_name(res));
             continue;
         }
-        read_value(reader);
+        read_block(reader);
     }
 }

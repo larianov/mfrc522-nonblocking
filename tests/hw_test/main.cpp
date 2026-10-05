@@ -21,7 +21,8 @@ void check(const char *name, bool ok) {
 }
 
 bool read_value(rc522::CardReader &reader, uint8_t block, int32_t &value) {
-    auto res = reader.start_read_transaction(block, key, rc522::key::KeyA);
+    reader.start_read_transaction(block, key, rc522::key::KeyA);
+    result_of_card res{result_of_card::WAIT};
     while (res == result_of_card::WAIT) res = reader.poll();
     if (res != result_of_card::SUCC) return false;
     auto data = reader.block();
@@ -30,14 +31,16 @@ bool read_value(rc522::CardReader &reader, uint8_t block, int32_t &value) {
 }
 
 void test_uid_stable(rc522::CardReader &reader) {
-    auto res = reader.start_read_transaction(4, key, rc522::key::KeyA);
+    reader.start_read_transaction(4, key, rc522::key::KeyA);
+    result_of_card res{result_of_card::WAIT};
     while (res == result_of_card::WAIT) res = reader.poll();
     auto first = reader.uid();
 
     int same = 0;
     uint32_t start = time_us_32();
     for (int i = 0; i < 100; i++) {
-        res = reader.start_read_transaction(4, key, rc522::key::KeyA);
+        reader.start_read_transaction(4, key, rc522::key::KeyA);
+        res = result_of_card::WAIT;
         while (res == result_of_card::WAIT) res = reader.poll();
         auto uid = reader.uid();
         if (res == result_of_card::SUCC && uid.size == first.size && std::memcmp(uid.bytes, first.bytes, uid.size) == 0) {
@@ -52,11 +55,13 @@ void test_write_read(rc522::CardReader &reader, uint8_t fill) {
     std::array<uint8_t, 16> data{};
     data.fill(fill);
 
-    auto res = reader.start_write_transaction(4, key, rc522::key::KeyA, data, false);
+    reader.start_write_transaction(4, key, rc522::key::KeyA, data, false);
+    result_of_card res{result_of_card::WAIT};
     while (res == result_of_card::WAIT) res = reader.poll();
     bool written = res == result_of_card::SUCC;
 
-    res = reader.start_read_transaction(4, key, rc522::key::KeyA);
+    reader.start_read_transaction(4, key, rc522::key::KeyA);
+    res = result_of_card::WAIT;
     while (res == result_of_card::WAIT) res = reader.poll();
     bool same = res == result_of_card::SUCC && std::memcmp(reader.block().bytes, data.data(), 16) == 0;
 
@@ -66,11 +71,13 @@ void test_write_read(rc522::CardReader &reader, uint8_t fill) {
 }
 
 void test_wrong_key(rc522::CardReader &reader) {
-    auto res = reader.start_read_transaction(4, wrong_key, rc522::key::KeyA);
+    reader.start_read_transaction(4, wrong_key, rc522::key::KeyA);
+    result_of_card res{result_of_card::WAIT};
     while (res == result_of_card::WAIT) res = reader.poll();
     check("wrong key -> AUTH_FAILED", res == result_of_card::AUTH_FAILED);
 
-    res = reader.start_read_transaction(4, key, rc522::key::KeyA);
+    reader.start_read_transaction(4, key, rc522::key::KeyA);
+    res = result_of_card::WAIT;
     while (res == result_of_card::WAIT) res = reader.poll();
     check("read works right after AUTH_FAILED", res == result_of_card::SUCC);
 }
@@ -86,7 +93,8 @@ void test_guards(rc522::CardReader &reader) {
 void test_value(rc522::CardReader &reader) {
     const std::array<uint8_t, 16> zero{0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
                                        0x00, 0x00, 0x00, 0x00, 0x05, 0xFA, 0x05, 0xFA};
-    auto res = reader.start_write_transaction(5, key, rc522::key::KeyA, zero, false);
+    reader.start_write_transaction(5, key, rc522::key::KeyA, zero, false);
+    result_of_card res{result_of_card::WAIT};
     while (res == result_of_card::WAIT) res = reader.poll();
     int32_t value = -1;
     check("value block 5 set to 0", res == result_of_card::SUCC && read_value(reader, 5, value) && value == 0);
@@ -94,18 +102,21 @@ void test_value(rc522::CardReader &reader) {
     bool all_ok = true;
     uint32_t start = time_us_32();
     for (int i = 0; i < 10; i++) {
-        res = reader.start_alteration_op(5, key, rc522::key::KeyA, 5, rc522::ALTERATION_OP::INCREMENT, 1);
+        reader.start_alteration_op(5, key, rc522::key::KeyA, 5, rc522::ALTERATION_OP::INCREMENT, 1);
+        res = result_of_card::WAIT;
         while (res == result_of_card::WAIT) res = reader.poll();
         if (res != result_of_card::SUCC) all_ok = false;
     }
     printf("  increment takes %lu us\n", (time_us_32() - start) / 10);
     check("increment x10 -> 10", all_ok && read_value(reader, 5, value) && value == 10);
 
-    res = reader.start_alteration_op(5, key, rc522::key::KeyA, 5, rc522::ALTERATION_OP::DECREMENT, 3);
+    reader.start_alteration_op(5, key, rc522::key::KeyA, 5, rc522::ALTERATION_OP::DECREMENT, 3);
+    res = result_of_card::WAIT;
     while (res == result_of_card::WAIT) res = reader.poll();
     check("decrement 3 -> 7", res == result_of_card::SUCC && read_value(reader, 5, value) && value == 7);
 
-    res = reader.start_alteration_op(5, key, rc522::key::KeyA, 6, rc522::ALTERATION_OP::RESTORE, 0);
+    reader.start_alteration_op(5, key, rc522::key::KeyA, 6, rc522::ALTERATION_OP::RESTORE, 0);
+    res = result_of_card::WAIT;
     while (res == result_of_card::WAIT) res = reader.poll();
     check("restore 5 -> 6, block 6 = 7", res == result_of_card::SUCC && read_value(reader, 6, value) && value == 7);
 }
@@ -113,12 +124,13 @@ void test_value(rc522::CardReader &reader) {
 void test_busy(rc522::CardReader &reader) {
     auto res = reader.start_read_transaction(4, key, rc522::key::KeyA);
     check("second start while busy -> OP_NOT_POSSIBLE",
-          res == result_of_card::WAIT &&
+          res == result_of_card::SUCC &&
               reader.start_read_transaction(4, key, rc522::key::KeyA) == result_of_card::OP_NOT_POSSIBLE);
 
     reader.abort();
     for (int attempt = 0; attempt < 3; attempt++) {
-        res = reader.start_read_transaction(4, key, rc522::key::KeyA);
+        reader.start_read_transaction(4, key, rc522::key::KeyA);
+        res = result_of_card::WAIT;
         while (res == result_of_card::WAIT) res = reader.poll();
         if (res == result_of_card::SUCC) break;
     }
@@ -126,10 +138,12 @@ void test_busy(rc522::CardReader &reader) {
 }
 
 void test_halt(rc522::CardReader &reader) {
-    auto res = reader.start_read_transaction(4, key, rc522::key::KeyA);
+    reader.start_read_transaction(4, key, rc522::key::KeyA);
+    result_of_card res{result_of_card::WAIT};
     while (res == result_of_card::WAIT) res = reader.poll();
 
-    res = reader.start_uid_transaction();
+    reader.start_uid_transaction();
+    res = result_of_card::WAIT;
     while (res == result_of_card::WAIT) res = reader.poll();
     check("halted card ignores REQA", res == result_of_card::TIMEOUT);
 }
@@ -150,7 +164,7 @@ int main() {
     rc522::PicoTransport transport{5, spi0};
     rc522::Rc522 rc{transport};
     uint8_t version{};
-    bool init_ok = rc.init() == rc522::result_of_op::SUCC;
+    bool init_ok = rc.init(false) == rc522::result_of_op::SUCC;
     printf("%s\n", rc.version(version));
     check("init", init_ok);
     if (!init_ok) {
@@ -160,7 +174,8 @@ int main() {
 
     printf("Put a MIFARE Classic 1K test card on the reader (blocks 4, 5, 6 will be overwritten)\n");
     while (true) {
-        auto res = reader.start_read_transaction(4, key, rc522::key::KeyA);
+        reader.start_read_transaction(4, key, rc522::key::KeyA);
+        result_of_card res{result_of_card::WAIT};
         while (res == result_of_card::WAIT) res = reader.poll();
         if (res == result_of_card::SUCC) break;
         sleep_ms(200);
