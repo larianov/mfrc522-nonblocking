@@ -38,7 +38,8 @@ int main() {
         if (res == rc522::result_of_card::SUCC) {
             auto uid = reader.uid();
             printf("UID: ");
-            for (int i = 0; i < uid.size; i++) printf("%02X ", uid.bytes[i]);
+            for (int i = 0; i < uid.size; i++)
+                printf("%02X ", uid.bytes[i]);
             printf(" SAK: %02X\n", reader.Sak());
         } else if (res == rc522::result_of_card::COLLISION) {
             printf("error: %s\n", result_name(res));

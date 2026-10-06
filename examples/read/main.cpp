@@ -41,7 +41,8 @@ int main() {
         if (res == rc522::result_of_card::SUCC) {
             auto data = reader.block();
             printf("block %d: ", block);
-            for (int i = 0; i < data.size; i++) printf("%02X ", data.bytes[i]);
+            for (int i = 0; i < data.size; i++)
+                printf("%02X ", data.bytes[i]);
             printf("\n");
         } else if (res != rc522::result_of_card::TIMEOUT) {
             printf("error: %s\n", result_name(res));

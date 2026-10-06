@@ -38,8 +38,7 @@ struct Uid {
     uint8_t size;
 };
 
-
-struct Read_Block{
+struct Read_Block {
     uint8_t bytes[16];
     uint8_t size;
 };
@@ -80,18 +79,17 @@ enum class Uid_states : uint8_t {
     HALT,
 };
 
-enum class WAKING_CARD_UP_FOR_UID : uint8_t{
-    REQA = 0,//doesnt wake up card
-    WUPA = 1, //wake_up card
+enum class WAKING_CARD_UP_FOR_UID : uint8_t {
+    REQA = 0, // doesnt wake up card
+    WUPA = 1, // wake_up card
 };
 
-struct uid_un{
+struct uid_un {
     Uid_states rstates;
     WAKING_CARD_UP_FOR_UID forcing_wake_up;
 };
 
-
-enum class CARD_activate : uint8_t{
+enum class CARD_activate : uint8_t {
     REQA_WUPA,
     ATQA,
     RESOLVE_UID,
@@ -104,12 +102,12 @@ enum class READING_STATES : uint8_t {
     HALT,
 };
 
-enum class key : uint8_t{
+enum class key : uint8_t {
     KeyA,
     KeyB,
 };
 
-struct reading_un{
+struct reading_un {
     READING_STATES rstate_;
     uint8_t block;
     std::array<uint8_t, 6> key_buff;
@@ -124,7 +122,7 @@ enum class WRITING_STATES : uint8_t {
     HALT,
 };
 
-struct writing_un{
+struct writing_un {
     WRITING_STATES rstate_;
     uint8_t block;
     std::array<uint8_t, 6> key_buff;
@@ -138,18 +136,18 @@ enum class PREPARE_CARD_FOR_RW : uint8_t {
     AUTH_WAIT,
 };
 
-enum class way_of_send : uint8_t{
+enum class way_of_send : uint8_t {
     TRANSIEVE,
     MFAUNT,
 };
 
-enum class ALTERATION_OP : uint8_t{
+enum class ALTERATION_OP : uint8_t {
     INCREMENT = 0xC1,
     DECREMENT = 0xC0,
     RESTORE = 0xC2,
 };
 
-enum class ALTERATION_STATE : uint8_t{
+enum class ALTERATION_STATE : uint8_t {
     IDLE,
     PREP_CARD_FOR_RW,
     WRITING_PT1,
@@ -158,7 +156,7 @@ enum class ALTERATION_STATE : uint8_t{
     HALT,
 };
 
-struct alteration_un{
+struct alteration_un {
     ALTERATION_OP op;
     ALTERATION_STATE rstate_;
     uint8_t block_src;
@@ -167,6 +165,5 @@ struct alteration_un{
     int32_t operand;
     key keyv;
 };
-
 
 } // namespace rc522

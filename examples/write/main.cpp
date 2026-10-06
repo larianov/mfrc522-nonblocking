@@ -49,5 +49,6 @@ int main() {
         sleep_ms(500);
     }
 
-    while (true) tight_loop_contents();
+    while (true)
+        tight_loop_contents();
 }

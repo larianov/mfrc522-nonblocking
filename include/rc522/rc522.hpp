@@ -16,17 +16,19 @@ class Rc522 {
     bool flag_isr_act{};
     void read_n_bytes(uint8_t *buff, uint8_t address, uint16_t N);
     void clear_status();
+
   public:
     explicit Rc522(Transport &t);
     result_of_op init(bool set_up_irq);
     uint32_t get_time();
     void clear_isr_flag();
-    [[nodiscard]]bool get_isr_flag()const;
-    uint8_t read_one_byte(uint8_t address); 
+    [[nodiscard]] bool get_isr_flag() const;
+    uint8_t read_one_byte(uint8_t address);
     result_of_op change_gain(RFCfgReg_Gain value);
     const char *version(uint8_t &version_mut) const;
     result_of_op set_power_state(uint8_t power_up); // 1 for power up, 0 for power_down
-    void start_exc(const uint8_t *arr, uint16_t size, bool byt7e, bool tx_crc, TIMEOUT_LEVELS time_levels, way_of_send wayt = way_of_send::TRANSIEVE, bool rx_crc = true);
+    void start_exc(const uint8_t *arr, uint16_t size, bool byt7e, bool tx_crc, TIMEOUT_LEVELS time_levels,
+                   way_of_send wayt = way_of_send::TRANSIEVE, bool rx_crc = true);
     result_of_transaction check_exc();
     result_of_transaction check_auth();
     void clear_mauth();

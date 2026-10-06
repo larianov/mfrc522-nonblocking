@@ -9,14 +9,14 @@ namespace rc522 {
 Rc522::Rc522(Transport &t) : t_(t) {};
 
 void Rc522::write_one_byte(uint8_t address, uint8_t value_to_write) {
-    assert(address < 0x3C);
+    assert(address < MAX_REG);
     uint8_t write_placeholder[2] = {static_cast<uint8_t>((address << 1U)), value_to_write};
     t_.transfer(write_placeholder, garbage, 2);
 }
 
 // in case of uncuccsess return 0xFF
 uint8_t Rc522::read_one_byte(uint8_t address) {
-    assert(address < 0x3C);
+    assert(address < MAX_REG);
     uint8_t read_placeholder[2] = {0xFF, 0xFF};
     uint8_t write_placeholder[2] = {static_cast<uint8_t>(static_cast<uint8_t>(address << 1U) | (1U << 7U)), 0x00};
     t_.transfer(write_placeholder, read_placeholder, 2);
@@ -24,7 +24,7 @@ uint8_t Rc522::read_one_byte(uint8_t address) {
 }
 
 void Rc522::read_n_bytes(uint8_t *buff, uint8_t address, uint16_t N) {
-    assert(address < 0x3C);
+    assert(address < MAX_REG);
     assert(N < 65);
     for (uint8_t i{}; i < N; i++) {
         fifo_buff[i] = static_cast<uint8_t>(static_cast<uint8_t>(address << 1U) | (1U << 7U));
@@ -38,7 +38,7 @@ void Rc522::read_n_bytes(uint8_t *buff, uint8_t address, uint16_t N) {
 
 result_of_op Rc522::set_power_state(uint8_t power_up) {
     uint8_t status = read_one_byte(CommandReg);
-    status = !(status & (1U << 4U));
+    status = !(status & POWER_DOWN);
     if (status == power_up)
         return result_of_op::SUCC;
     uint8_t attempts = 0;
@@ -125,11 +125,11 @@ result_of_op Rc522::change_gain(RFCfgReg_Gain value) {
     auto RMW = read_one_byte(RFCfgReg);
     if (RMW == 0xFF)
         return result_of_op::DEVICE_IS_NOT_RESPONDING;
-    RMW &= ~(0b111U << 4U);
+    RMW &= ~RxGain;
     RMW |= static_cast<uint8_t>((static_cast<uint8_t>(value) << 4U));
     write_one_byte(RFCfgReg, RMW);
     RMW = read_one_byte(RFCfgReg);
-    if ((RMW & (0b111U << 4U)) != (static_cast<uint8_t>(value) << 4U))
+    if ((RMW & RFCfgReg) != (static_cast<uint8_t>(value) << 4U))
         return result_of_op::REGISTERES_NOT_CHANGING;
     t_.delayUs(6'000);
     return result_of_op::SUCC;
@@ -159,7 +159,8 @@ result_of_transaction Rc522::error_decoding() {
     }
 }
 
-void Rc522::start_exc(const uint8_t *arr, uint16_t size, bool byt7e, bool tx_crc, TIMEOUT_LEVELS time_levels, way_of_send wayt, bool rx_crc) {
+void Rc522::start_exc(const uint8_t *arr, uint16_t size, bool byt7e, bool tx_crc, TIMEOUT_LEVELS time_levels,
+                      way_of_send wayt, bool rx_crc) {
     clear_status();
     flag_isr_act = true;
     if (time_levels != last_time_) {
@@ -179,7 +180,7 @@ void Rc522::start_exc(const uint8_t *arr, uint16_t size, bool byt7e, bool tx_crc
     if (rx_crc && tx_crc) {
         write_one_byte(TxModeReg, SET_CRC_ON_TX);
         write_one_byte(RxModeReg, SET_CRC_ON_RX);
-    }else if(tx_crc && !rx_crc){
+    } else if (tx_crc && !rx_crc) {
         write_one_byte(TxModeReg, SET_CRC_ON_TX);
         write_one_byte(RxModeReg, 0);
     } else {
@@ -215,7 +216,7 @@ result_of_transaction Rc522::check_exc() {
     } else if ((byte & 1U) == 1U) {
         flag_isr_act = false;
         return result_of_transaction::Time_out;
-     }
+    }
     return result_of_transaction::WAIT;
 }
 
@@ -229,9 +230,11 @@ result_of_transaction Rc522::recieve_exc(uint8_t *arr, uint8_t size) {
     return result_of_transaction::SUCC;
 }
 
-uint32_t Rc522::get_time(){return t_.microus_32();}
+uint32_t Rc522::get_time() {
+    return t_.microus_32();
+}
 
-result_of_transaction Rc522::check_auth(){
+result_of_transaction Rc522::check_auth() {
     uint8_t byte = read_one_byte(Status2Reg);
     if ((byte & IS_MFCrypto1On) == IS_MFCrypto1On) {
         flag_isr_act = false;
@@ -248,15 +251,18 @@ result_of_transaction Rc522::check_auth(){
     return result_of_transaction::WAIT;
 }
 
-void Rc522::clear_mauth(){
+void Rc522::clear_mauth() {
     uint8_t byte_rmw = read_one_byte(Status2Reg);
     byte_rmw &= static_cast<uint8_t>(~static_cast<uint8_t>((1U << 3U)));
     write_one_byte(Status2Reg, byte_rmw);
 }
 
+bool Rc522::get_isr_flag() const {
+    return flag_isr_act;
+}
 
-bool Rc522::get_isr_flag()const{return flag_isr_act;}
-
-void Rc522::clear_isr_flag(){flag_isr_act = false;}
+void Rc522::clear_isr_flag() {
+    flag_isr_act = false;
+}
 
 } // namespace rc522

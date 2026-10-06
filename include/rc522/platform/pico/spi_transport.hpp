@@ -4,7 +4,7 @@
 #include <hardware/timer.h>
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
-namespace rc522{
+namespace rc522 {
 class PicoTransport : public Transport {
   private:
     uint8_t cs_;
@@ -24,4 +24,4 @@ class PicoTransport : public Transport {
         return time_us_32();
     }
 };
-}
+} // namespace rc522

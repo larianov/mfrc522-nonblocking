@@ -9,10 +9,11 @@ inline constexpr uint8_t POWER_WAKE_UP = 0b0000'0111;         // wake up
 inline constexpr uint8_t POWER_SET_POWER_DOWN = 0b000'1'0111; // power down
 inline constexpr uint8_t SET_UP_TIMER =
     (0b1'000'1111); // set-up automatic timer, and set 4 highest bits of tprescaler to 1
-inline constexpr uint8_t SET_UP_TPRESCALER_LO = (0xFF);       // set-up lowest bits of tprescaler to 1
-inline constexpr uint8_t SET_UP_MOD_REG = 0b0011'1101;        // set-up calccrc by standard of 14443A
-inline constexpr uint8_t SET_UP_TX_CONTROL_REG = 0x43; // set-uping TxControlReg to use both, tx1 and tx2, and
-                                                              // make field with power of difference between this 2
+inline constexpr uint8_t RxGain = 0b111U << 4U;
+inline constexpr uint8_t SET_UP_TPRESCALER_LO = (0xFF); // set-up lowest bits of tprescaler to 1
+inline constexpr uint8_t SET_UP_MOD_REG = 0b0011'1101;  // set-up calccrc by standard of 14443A
+inline constexpr uint8_t SET_UP_TX_CONTROL_REG = 0x43;  // set-uping TxControlReg to use both, tx1 and tx2, and
+                                                        // make field with power of difference between this 2
 inline constexpr uint8_t SET_UP_FORCE_ASK =
     (1U << 6U); // set-up TxAskREG to force 100% ask, what means during modulation pauses while transmitting to the card
 inline constexpr uint8_t FFLUSH_FIFO = (1U << 7U);

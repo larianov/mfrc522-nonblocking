@@ -22,7 +22,8 @@ bool read_block(rc522::CardReader &reader) {
     }
     auto data = reader.block();
     printf("block %d: ", block);
-    for (int i = 0; i < data.size; i++) printf("%02X ", data.bytes[i]);
+    for (int i = 0; i < data.size; i++)
+        printf("%02X ", data.bytes[i]);
     printf("\n");
     return true;
 }
@@ -50,7 +51,7 @@ int main() {
     rc522::CardReader reader{rc};
 
     // value block format: value, ~value, value, addr, ~addr, addr, ~addr
-    const std::array<uint8_t, 16> zero{0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
+    const std::array<uint8_t, 16> zero{0x00, 0x00, 0x00, 0x00, 0xFF,  0xFF, 0xFF,  0xFF,
                                        0x00, 0x00, 0x00, 0x00, block, 0xFA, block, 0xFA};
 
     while (true) {
@@ -59,7 +60,8 @@ int main() {
         while (res == rc522::result_of_card::WAIT) {
             res = reader.poll();
         }
-        if (res == rc522::result_of_card::SUCC) break;
+        if (res == rc522::result_of_card::SUCC)
+            break;
         if (res != rc522::result_of_card::TIMEOUT) {
             printf("write error: %s\n", result_name(res));
         }

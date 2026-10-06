@@ -23,7 +23,6 @@ void gpio_callback(uint gpio, uint32_t events) {
     }
 }
 
-
 int main() {
     stdio_init_all();
     sleep_ms(2000);
@@ -41,19 +40,14 @@ int main() {
     gpio_set_dir(irq_pin, GPIO_IN);
     rc522::PicoTransport transport{5, spi0};
     rc522::Rc522 rc{transport};
-    
-    gpio_set_irq_enabled_with_callback(
-        irq_pin,
-        GPIO_IRQ_EDGE_FALL,
-        true,
-        &gpio_callback
-    );
+
+    gpio_set_irq_enabled_with_callback(irq_pin, GPIO_IRQ_EDGE_FALL, true, &gpio_callback);
     if (rc.init(true) != rc522::result_of_op::SUCC) {
         printf("RC522 init failed, check wiring\n");
     } else {
         printf("RC522 init OK\n");
     }
-    
+
     rc522::CardReader reader{rc};
     rc522::result_of_card res{};
     while (true) {
@@ -64,9 +58,9 @@ int main() {
             if (needs_to_poll) {
                 needs_to_poll = false;
                 res = reader.poll();
-                if (res != rc522::result_of_card::WAIT) break;
-            }
-            else {
+                if (res != rc522::result_of_card::WAIT)
+                    break;
+            } else {
                 __wfi();
                 // tight_loop_contents();
             }
@@ -75,11 +69,11 @@ int main() {
             auto time2 = get_absolute_time();
             auto uid = reader.uid();
             printf("UID: ");
-            for (int i = 0; i < uid.size; i++) printf("%02X ", uid.bytes[i]);
+            for (int i = 0; i < uid.size; i++)
+                printf("%02X ", uid.bytes[i]);
             printf(" SAK: %02X\n", reader.Sak());
             printf("TIME: %lld\n", absolute_time_diff_us(time, time2));
-        }
-        else if (res == rc522::result_of_card::COLLISION) {
+        } else if (res == rc522::result_of_card::COLLISION) {
             printf("COLISSION APPEARED\n");
         }
     }

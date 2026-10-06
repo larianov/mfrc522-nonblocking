@@ -16,15 +16,19 @@ int failed = 0;
 
 void check(const char *name, bool ok) {
     printf("[%s] %s\n", ok ? "PASS" : "FAIL", name);
-    if (ok) passed++;
-    else failed++;
+    if (ok)
+        passed++;
+    else
+        failed++;
 }
 
 bool read_value(rc522::CardReader &reader, uint8_t block, int32_t &value) {
     reader.start_read_transaction(block, key, rc522::key::KeyA);
     result_of_card res{result_of_card::WAIT};
-    while (res == result_of_card::WAIT) res = reader.poll();
-    if (res != result_of_card::SUCC) return false;
+    while (res == result_of_card::WAIT)
+        res = reader.poll();
+    if (res != result_of_card::SUCC)
+        return false;
     auto data = reader.block();
     value = data.bytes[0] | data.bytes[1] << 8 | data.bytes[2] << 16 | data.bytes[3] << 24;
     return true;
@@ -33,7 +37,8 @@ bool read_value(rc522::CardReader &reader, uint8_t block, int32_t &value) {
 void test_uid_stable(rc522::CardReader &reader) {
     reader.start_read_transaction(4, key, rc522::key::KeyA);
     result_of_card res{result_of_card::WAIT};
-    while (res == result_of_card::WAIT) res = reader.poll();
+    while (res == result_of_card::WAIT)
+        res = reader.poll();
     auto first = reader.uid();
 
     int same = 0;
@@ -41,9 +46,11 @@ void test_uid_stable(rc522::CardReader &reader) {
     for (int i = 0; i < 100; i++) {
         reader.start_read_transaction(4, key, rc522::key::KeyA);
         res = result_of_card::WAIT;
-        while (res == result_of_card::WAIT) res = reader.poll();
+        while (res == result_of_card::WAIT)
+            res = reader.poll();
         auto uid = reader.uid();
-        if (res == result_of_card::SUCC && uid.size == first.size && std::memcmp(uid.bytes, first.bytes, uid.size) == 0) {
+        if (res == result_of_card::SUCC && uid.size == first.size &&
+            std::memcmp(uid.bytes, first.bytes, uid.size) == 0) {
             same++;
         }
     }
@@ -57,12 +64,14 @@ void test_write_read(rc522::CardReader &reader, uint8_t fill) {
 
     reader.start_write_transaction(4, key, rc522::key::KeyA, data, false);
     result_of_card res{result_of_card::WAIT};
-    while (res == result_of_card::WAIT) res = reader.poll();
+    while (res == result_of_card::WAIT)
+        res = reader.poll();
     bool written = res == result_of_card::SUCC;
 
     reader.start_read_transaction(4, key, rc522::key::KeyA);
     res = result_of_card::WAIT;
-    while (res == result_of_card::WAIT) res = reader.poll();
+    while (res == result_of_card::WAIT)
+        res = reader.poll();
     bool same = res == result_of_card::SUCC && std::memcmp(reader.block().bytes, data.data(), 16) == 0;
 
     char name[48];
@@ -73,12 +82,14 @@ void test_write_read(rc522::CardReader &reader, uint8_t fill) {
 void test_wrong_key(rc522::CardReader &reader) {
     reader.start_read_transaction(4, wrong_key, rc522::key::KeyA);
     result_of_card res{result_of_card::WAIT};
-    while (res == result_of_card::WAIT) res = reader.poll();
+    while (res == result_of_card::WAIT)
+        res = reader.poll();
     check("wrong key -> AUTH_FAILED", res == result_of_card::AUTH_FAILED);
 
     reader.start_read_transaction(4, key, rc522::key::KeyA);
     res = result_of_card::WAIT;
-    while (res == result_of_card::WAIT) res = reader.poll();
+    while (res == result_of_card::WAIT)
+        res = reader.poll();
     check("read works right after AUTH_FAILED", res == result_of_card::SUCC);
 }
 
@@ -95,7 +106,8 @@ void test_value(rc522::CardReader &reader) {
                                        0x00, 0x00, 0x00, 0x00, 0x05, 0xFA, 0x05, 0xFA};
     reader.start_write_transaction(5, key, rc522::key::KeyA, zero, false);
     result_of_card res{result_of_card::WAIT};
-    while (res == result_of_card::WAIT) res = reader.poll();
+    while (res == result_of_card::WAIT)
+        res = reader.poll();
     int32_t value = -1;
     check("value block 5 set to 0", res == result_of_card::SUCC && read_value(reader, 5, value) && value == 0);
 
@@ -104,20 +116,24 @@ void test_value(rc522::CardReader &reader) {
     for (int i = 0; i < 10; i++) {
         reader.start_alteration_op(5, key, rc522::key::KeyA, 5, rc522::ALTERATION_OP::INCREMENT, 1);
         res = result_of_card::WAIT;
-        while (res == result_of_card::WAIT) res = reader.poll();
-        if (res != result_of_card::SUCC) all_ok = false;
+        while (res == result_of_card::WAIT)
+            res = reader.poll();
+        if (res != result_of_card::SUCC)
+            all_ok = false;
     }
     printf("  increment takes %lu us\n", (time_us_32() - start) / 10);
     check("increment x10 -> 10", all_ok && read_value(reader, 5, value) && value == 10);
 
     reader.start_alteration_op(5, key, rc522::key::KeyA, 5, rc522::ALTERATION_OP::DECREMENT, 3);
     res = result_of_card::WAIT;
-    while (res == result_of_card::WAIT) res = reader.poll();
+    while (res == result_of_card::WAIT)
+        res = reader.poll();
     check("decrement 3 -> 7", res == result_of_card::SUCC && read_value(reader, 5, value) && value == 7);
 
     reader.start_alteration_op(5, key, rc522::key::KeyA, 6, rc522::ALTERATION_OP::RESTORE, 0);
     res = result_of_card::WAIT;
-    while (res == result_of_card::WAIT) res = reader.poll();
+    while (res == result_of_card::WAIT)
+        res = reader.poll();
     check("restore 5 -> 6, block 6 = 7", res == result_of_card::SUCC && read_value(reader, 6, value) && value == 7);
 }
 
@@ -131,8 +147,10 @@ void test_busy(rc522::CardReader &reader) {
     for (int attempt = 0; attempt < 3; attempt++) {
         reader.start_read_transaction(4, key, rc522::key::KeyA);
         res = result_of_card::WAIT;
-        while (res == result_of_card::WAIT) res = reader.poll();
-        if (res == result_of_card::SUCC) break;
+        while (res == result_of_card::WAIT)
+            res = reader.poll();
+        if (res == result_of_card::SUCC)
+            break;
     }
     check("reader usable after abort()", res == result_of_card::SUCC);
 }
@@ -140,11 +158,13 @@ void test_busy(rc522::CardReader &reader) {
 void test_halt(rc522::CardReader &reader) {
     reader.start_read_transaction(4, key, rc522::key::KeyA);
     result_of_card res{result_of_card::WAIT};
-    while (res == result_of_card::WAIT) res = reader.poll();
+    while (res == result_of_card::WAIT)
+        res = reader.poll();
 
     reader.start_uid_transaction();
     res = result_of_card::WAIT;
-    while (res == result_of_card::WAIT) res = reader.poll();
+    while (res == result_of_card::WAIT)
+        res = reader.poll();
     check("halted card ignores REQA", res == result_of_card::TIMEOUT);
 }
 
@@ -168,7 +188,8 @@ int main() {
     printf("%s\n", rc.version(version));
     check("init", init_ok);
     if (!init_ok) {
-        while (true) tight_loop_contents();
+        while (true)
+            tight_loop_contents();
     }
     rc522::CardReader reader{rc};
 
@@ -176,8 +197,10 @@ int main() {
     while (true) {
         reader.start_read_transaction(4, key, rc522::key::KeyA);
         result_of_card res{result_of_card::WAIT};
-        while (res == result_of_card::WAIT) res = reader.poll();
-        if (res == result_of_card::SUCC) break;
+        while (res == result_of_card::WAIT)
+            res = reader.poll();
+        if (res == result_of_card::SUCC)
+            break;
         sleep_ms(200);
     }
     printf("Card found, running tests\n\n");
@@ -192,5 +215,6 @@ int main() {
     test_halt(reader);
 
     printf("\n%d passed, %d failed\n", passed, failed);
-    while (true) tight_loop_contents();
+    while (true)
+        tight_loop_contents();
 }
