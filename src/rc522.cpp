@@ -129,7 +129,7 @@ result_of_op Rc522::change_gain(RFCfgReg_Gain value) {
     RMW |= static_cast<uint8_t>((static_cast<uint8_t>(value) << 4U));
     write_one_byte(RFCfgReg, RMW);
     RMW = read_one_byte(RFCfgReg);
-    if ((RMW & RFCfgReg) != (static_cast<uint8_t>(value) << 4U))
+    if ((RMW & RxGain) != (static_cast<uint8_t>(value) << 4U))
         return result_of_op::REGISTERES_NOT_CHANGING;
     t_.delayUs(6'000);
     return result_of_op::SUCC;
